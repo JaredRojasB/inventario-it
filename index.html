@@ -6,6 +6,7 @@
 <title>InventarioTech Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root {
   --bg: #f0f2f7;
@@ -774,6 +775,29 @@ textarea { resize: vertical; min-height: 60px; }
   #panel-inventario, #panel-usuarios, #panel-dashboard, #panel-importar { display: none !important; }
   body { background: white; }
 }
+
+/* OFFBOARDING MODAL */
+.offboard-eq-list { display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; margin:12px 0; }
+.offboard-eq-item { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; font-size:13px; }
+.offboard-eq-icon { font-size:18px; }
+.offboard-eq-info { flex:1; }
+.offboard-eq-name { font-weight:500; }
+.offboard-eq-tag  { font-family:var(--mono); font-size:11px; color:var(--muted); }
+
+/* QR MODAL */
+.qr-wrap { display:flex; flex-direction:column; align-items:center; gap:16px; padding:10px 0; }
+.qr-box  { background:white; padding:16px; border-radius:10px; border:1px solid var(--border); }
+.qr-info { text-align:center; }
+.qr-tag  { font-family:var(--mono); font-size:20px; font-weight:700; color:var(--text); }
+.qr-sub  { font-size:12px; color:var(--muted); margin-top:4px; }
+
+/* ASSIGNMENT HISTORY BADGE */
+.assign-history-btn { background:var(--purple-light); color:var(--purple); border:1px solid #ddd6fe; padding:6px 10px; font-size:11px; border-radius:8px; cursor:pointer; border:1px solid #c4b5fd; font-family:var(--sans); font-weight:500; transition:all 0.15s; }
+.assign-history-btn:hover { background:var(--purple); color:white; }
+
+/* DURATION CHIP */
+.duration-chip { display:inline-flex; align-items:center; gap:4px; font-family:var(--mono); font-size:10px; background:var(--surface3); border:1px solid var(--border); border-radius:12px; padding:2px 8px; color:var(--muted); }
+
 </style>
 </head>
 <body>
@@ -915,7 +939,12 @@ textarea { resize: vertical; min-height: 60px; }
 
     <!-- ═══ USUARIOS ═══ -->
     <div class="panel" id="panel-usuarios">
-      <div style="margin-bottom:16px;font-size:13px;color:var(--muted)">Vista agrupada por usuario asignado</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div style="font-size:13px;color:var(--muted)">Vista agrupada por usuario · Gestiona asignaciones y offboarding</div>
+        <div style="display:flex;gap:8px">
+          <div class="search-box" style="min-width:180px"><span class="search-icon">🔍</span><input type="text" id="userSearch" placeholder="Buscar usuario..." oninput="renderUsers()"></div>
+        </div>
+      </div>
       <div class="user-grid" id="userGrid"></div>
       <div class="empty-state" id="userEmpty" style="display:none">
         <div class="icon">👥</div>
@@ -1123,6 +1152,53 @@ textarea { resize: vertical; min-height: 60px; }
   </div>
 </div>
 
+
+<!-- MODAL OFFBOARDING -->
+<div class="modal-overlay" id="offboardModal">
+  <div class="modal">
+    <div class="modal-title">🚪 Offboarding — <span id="offboardUserName" style="color:var(--danger);font-weight:600"></span></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:4px">Los siguientes equipos serán movidos a <strong>Bodega</strong> automáticamente:</div>
+    <div class="offboard-eq-list" id="offboardEqList"></div>
+    <div style="background:var(--warning-light);border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--warning)">
+      ⚠️ Esta acción registrará la fecha de devolución en el historial de cada equipo.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeOffboard()">Cancelar</button>
+      <button class="btn btn-danger-soft" style="background:var(--danger);color:white" onclick="confirmOffboard()">🚪 Confirmar Offboarding</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL QR -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title">🔖 Código QR del Equipo</div>
+    <div class="qr-wrap">
+      <div class="qr-box" id="qrCanvas"></div>
+      <div class="qr-info">
+        <div class="qr-tag" id="qrTag"></div>
+        <div class="qr-sub" id="qrSub"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:12px">Escanea para ver este equipo en el sistema</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeQR()">Cerrar</button>
+      <button class="btn btn-primary" onclick="printQR()">🖨️ Imprimir QR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL HISTORIAL ASIGNACIONES -->
+<div class="modal-overlay" id="assignHistModal">
+  <div class="modal modal-lg">
+    <div class="modal-title">📋 Historial de Asignaciones — <span id="assignHistUser" style="color:var(--purple);font-weight:400"></span></div>
+    <div id="assignHistContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAssignHist()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -1214,13 +1290,36 @@ function setSyncStatus(status) {
   el.innerHTML = `<span style="color:${s.color}">${s.icon} ${s.text}</span>`;
 }
 
-function addHistory(tag, action, detail = '') {
+function addHistory(tag, action, detail = '', meta = {}) {
   if (!history[tag]) history[tag] = [];
   history[tag].unshift({
-    action, detail,
-    ts: new Date().toLocaleString('es-MX')
+    action, detail, meta,
+    ts: new Date().toLocaleString('es-MX'),
+    tsISO: new Date().toISOString()
   });
-  if (history[tag].length > 50) history[tag].pop();
+  if (history[tag].length > 100) history[tag].pop();
+}
+
+// Assignment history: stored per user
+function addAssignmentRecord(usuario, tag, tipo, marca, modelo, event, fecha = null) {
+  const key = 'assign_' + usuario.replace(/\s+/g,'_').toLowerCase();
+  if (!history[key]) history[key] = [];
+  history[key].unshift({
+    tag, tipo, marca, modelo, event,
+    fecha: fecha || new Date().toLocaleDateString('es-MX'),
+    tsISO: new Date().toISOString()
+  });
+}
+
+function calcDuration(startISO, endISO) {
+  if (!startISO) return '—';
+  const ms = new Date(endISO || new Date()) - new Date(startISO);
+  const days = Math.floor(ms / 86400000);
+  if (days < 1) return 'Menos de 1 día';
+  if (days < 30) return `${days} día${days!==1?'s':''}`;
+  const months = Math.floor(days/30);
+  const rem = days % 30;
+  return `${months} mes${months!==1?'es':''} ${rem>0?rem+'d':''}`.trim();
 }
 
 function updateSidebarFooter() {
@@ -1582,7 +1681,20 @@ async function saveEquipo() {
     const changes = [];
     if (oldEq.estado !== equipo.estado) changes.push(`Estado: ${oldEq.estado} → ${equipo.estado}`);
     if (oldEq.asignacion !== equipo.asignacion) changes.push(`Asignación: ${oldEq.asignacion} → ${equipo.asignacion}`);
-    if (oldEq.usuario !== equipo.usuario) changes.push(`Usuario: "${oldEq.usuario||'ninguno'}" → "${equipo.usuario||'ninguno'}"`);
+    if (oldEq.usuario !== equipo.usuario) {
+      changes.push(`Usuario: "${oldEq.usuario||'ninguno'}" → "${equipo.usuario||'ninguno'}"`);
+      if (oldEq.usuario && oldEq.asignacion==='usuario') {
+        // Find when it was assigned
+        const assignKey = 'assign_' + oldEq.usuario.replace(/[^a-z0-9]/gi,'_').toLowerCase();
+        const prevAssign = (history[assignKey]||[]).find(r=>r.tag===tag && r.event==='asignado');
+        addAssignmentRecord(oldEq.usuario, tag, equipo.tipo, equipo.marca, equipo.modelo, 'devuelto', null);
+        addHistory(tag, 'Desasignado de usuario', oldEq.usuario, {returnedAt: new Date().toISOString()});
+      }
+      if (equipo.usuario && equipo.asignacion==='usuario') {
+        addAssignmentRecord(equipo.usuario, tag, equipo.tipo, equipo.marca, equipo.modelo, 'asignado');
+        addHistory(tag, 'Asignado a usuario', equipo.usuario, {assignedTo: equipo.usuario, assignedAt: new Date().toISOString()});
+      }
+    };
     if (changes.length) addHistory(tag, 'Actualización', changes.join(' | '));
     else addHistory(tag, 'Editado', 'Sin cambios importantes');
     equipos[editIndex] = equipo;
@@ -1590,6 +1702,10 @@ async function saveEquipo() {
   } else {
     addHistory(tag, 'Registrado', `${equipo.tipo} ${equipo.marca} ${equipo.modelo} · ${equipo.asignacion==='usuario'?'Usuario: '+equipo.usuario:'Bodega'}`);
     equipos.push(equipo);
+    if (equipo.asignacion==='usuario' && equipo.usuario) {
+      addAssignmentRecord(equipo.usuario, equipo.tag, equipo.tipo, equipo.marca, equipo.modelo, 'asignado');
+      addHistory(tag, 'Asignado a usuario', equipo.usuario, {assignedTo: equipo.usuario, assignedAt: new Date().toISOString()});
+    }
     showToast('Equipo registrado', 'success');
   }
 
@@ -1637,6 +1753,7 @@ function closeHistModal() { document.getElementById('histModalOverlay').classLis
 //  USERS VIEW
 // ═══════════════════════════════════════════
 function renderUsers() {
+  const q = (document.getElementById('userSearch')?.value||'').toLowerCase();
   const assigned = equipos.filter(e => e.asignacion==='usuario' && e.usuario);
   const byUser = {};
   assigned.forEach(e => {
@@ -1645,15 +1762,20 @@ function renderUsers() {
   });
   const grid = document.getElementById('userGrid');
   const empty = document.getElementById('userEmpty');
-  const users = Object.entries(byUser).sort((a,b)=>a[0].localeCompare(b[0]));
+  let users = Object.entries(byUser).sort((a,b)=>a[0].localeCompare(b[0]));
+  if (q) users = users.filter(([name])=>name.toLowerCase().includes(q));
   empty.style.display = users.length===0 ? 'block' : 'none';
   grid.innerHTML = users.map(([name, eqs]) => `
     <div class="user-card">
       <div class="user-card-header">
         <div class="user-avatar" style="background:${stringToColor(name)}">${name[0].toUpperCase()}</div>
-        <div>
+        <div style="flex:1">
           <div class="user-name">${name}</div>
           <div class="user-count">${eqs.length} equipo${eqs.length!==1?'s':''} asignado${eqs.length!==1?'s':''}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="assign-history-btn" onclick="showAssignHistory('${name}')">📋 Historial</button>
+          <button class="btn btn-danger-soft" onclick="startOffboard('${name}')">🚪 Offboarding</button>
         </div>
       </div>
       <div class="user-equipment-list">
@@ -1663,7 +1785,9 @@ function renderUsers() {
               <div class="user-eq-name">${e.marca} ${e.modelo}</div>
               <div class="user-eq-tag">${e.tag} · ${e.tipo||'—'}</div>
             </div>
-            ${estadoBadge(e.estado)}
+            <div style="display:flex;align-items:center;gap:6px">
+              ${estadoBadge(e.estado)}
+            </div>
           </div>`).join('')}
       </div>
     </div>`).join('');
@@ -1969,6 +2093,210 @@ document.getElementById('histModalOverlay').addEventListener('click', e => { if(
 // ═══════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════
+
+// ═══════════════════════════════════════════
+//  OFFBOARDING
+// ═══════════════════════════════════════════
+let offboardUser = null;
+
+function startOffboard(username) {
+  offboardUser = username;
+  const eqs = equipos.filter(e => e.asignacion==='usuario' && e.usuario===username);
+  document.getElementById('offboardUserName').textContent = username;
+  document.getElementById('offboardEqList').innerHTML = eqs.map(e => `
+    <div class="offboard-eq-item">
+      <div class="offboard-eq-icon">${tipoIcon(e.tipo)}</div>
+      <div class="offboard-eq-info">
+        <div class="offboard-eq-name">${e.marca} ${e.modelo}</div>
+        <div class="offboard-eq-tag">${e.tag} · ${e.tipo||'—'}</div>
+      </div>
+      <span class="badge b-bodega" style="font-size:10px">→ Bodega</span>
+    </div>`).join('');
+  document.getElementById('offboardModal').classList.add('open');
+}
+
+async function confirmOffboard() {
+  const eqs = equipos.filter(e => e.asignacion==='usuario' && e.usuario===offboardUser);
+  const now = new Date();
+  eqs.forEach(e => {
+    const assignKey = 'assign_' + offboardUser.replace(/[^a-z0-9]/gi,'_').toLowerCase();
+    const prevRec = (history[assignKey]||[]).find(r=>r.tag===e.tag && r.event==='asignado');
+    const duration = prevRec ? calcDuration(prevRec.tsISO, now.toISOString()) : '—';
+    addAssignmentRecord(offboardUser, e.tag, e.tipo, e.marca, e.modelo, 'devuelto (offboarding)');
+    addHistory(e.tag, 'Offboarding — movido a Bodega', `Era de: ${offboardUser} · Duración: ${duration}`, {returnedAt: now.toISOString(), duration});
+    e.asignacion = 'bodega';
+    e.usuario = '';
+  });
+  closeOffboard();
+  await saveData();
+  renderUsers();
+  renderTable();
+  showToast(`Offboarding completado — ${eqs.length} equipo${eqs.length!==1?'s':''} a Bodega`, 'success');
+}
+
+function closeOffboard() {
+  offboardUser = null;
+  document.getElementById('offboardModal').classList.remove('open');
+}
+
+function tipoIcon(tipo) {
+  const map = {'Computadora':'💻','Monitor':'🖥️','Headset':'🎧','Kit Teclado Mouse':'⌨️','Adaptador Monitor (HDMI)':'🔌','Camara Web':'📷'};
+  return map[tipo] || '📦';
+}
+
+// ═══════════════════════════════════════════
+//  QR CODE
+// ═══════════════════════════════════════════
+let currentQRIdx = null;
+
+function showQR(idx) {
+  currentQRIdx = idx;
+  const e = equipos[idx];
+  const url = `https://JaredRojasB.github.io/inventario-it/?tag=${encodeURIComponent(e.tag)}`;
+
+  document.getElementById('qrTag').textContent = e.tag;
+  document.getElementById('qrSub').textContent = `${e.marca} ${e.modelo} · ${e.tipo||''}`;
+
+  const canvas = document.getElementById('qrCanvas');
+  canvas.innerHTML = '';
+  new QRCode(canvas, {
+    text: url,
+    width: 180,
+    height: 180,
+    colorDark: '#1e2340',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  document.getElementById('qrModal').classList.add('open');
+}
+
+function closeQR() {
+  document.getElementById('qrModal').classList.remove('open');
+  document.getElementById('qrCanvas').innerHTML = '';
+  currentQRIdx = null;
+}
+
+function printQR() {
+  const e = equipos[currentQRIdx];
+  const canvas = document.getElementById('qrCanvas').querySelector('canvas');
+  const img = canvas ? canvas.toDataURL() : '';
+  const win = window.open('', '_blank', 'width=400,height=500');
+  win.document.write(`
+    <!DOCTYPE html><html><head>
+    <style>
+      body { font-family: 'IBM Plex Mono', monospace; text-align:center; padding:30px; background:white; }
+      img { display:block; margin:0 auto 12px; }
+      h2 { font-size:22px; margin:0 0 4px; }
+      p  { font-size:13px; color:#666; margin:2px 0; }
+      .box { border:2px solid #1e2340; border-radius:12px; padding:20px; display:inline-block; }
+    </style>
+    </head><body onload="window.print();window.close()">
+    <div class="box">
+      <img src="${img}" width="180" height="180">
+      <h2>${e.tag}</h2>
+      <p>${e.marca} ${e.modelo}</p>
+      <p>${e.tipo||''} ${e.serie ? '· S/N: '+e.serie : ''}</p>
+    </div>
+    </body></html>`);
+  win.document.close();
+}
+
+// ═══════════════════════════════════════════
+//  HISTORIAL DE ASIGNACIONES POR USUARIO
+// ═══════════════════════════════════════════
+function showAssignHistory(username) {
+  document.getElementById('assignHistUser').textContent = username;
+  const key = 'assign_' + username.replace(/[^a-z0-9]/gi,'_').toLowerCase();
+  const records = history[key] || [];
+
+  // Group by tag
+  const byTag = {};
+  records.forEach(r => {
+    if (!byTag[r.tag]) byTag[r.tag] = [];
+    byTag[r.tag].push(r);
+  });
+
+  let html = '';
+  if (records.length === 0) {
+    html = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Sin historial de asignaciones registrado</div>';
+  } else {
+    // Summary stats
+    const totalEqs = Object.keys(byTag).length;
+    const currentlyHas = equipos.filter(e=>e.usuario===username && e.asignacion==='usuario').length;
+    html += `<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="kpi-card blue" style="flex:1;min-width:120px;padding:12px">
+        <div class="kpi-num" style="font-size:22px">${totalEqs}</div>
+        <div class="kpi-label">Equipos históricos</div>
+      </div>
+      <div class="kpi-card green" style="flex:1;min-width:120px;padding:12px">
+        <div class="kpi-num" style="font-size:22px">${currentlyHas}</div>
+        <div class="kpi-label">Tiene actualmente</div>
+      </div>
+      <div class="kpi-card purple" style="flex:1;min-width:120px;padding:12px">
+        <div class="kpi-num" style="font-size:22px">${records.filter(r=>r.event.includes('devuelto')||r.event.includes('offboarding')).length}</div>
+        <div class="kpi-label">Devoluciones</div>
+      </div>
+    </div>`;
+
+    // Timeline per equipment
+    Object.entries(byTag).forEach(([tag, recs]) => {
+      const eq = equipos.find(e=>e.tag===tag);
+      const assignRec  = recs.find(r=>r.event==='asignado');
+      const returnRec  = recs.find(r=>r.event.includes('devuelto')||r.event.includes('offboarding'));
+      const duration   = assignRec && returnRec ? calcDuration(assignRec.tsISO, returnRec.tsISO) : assignRec ? calcDuration(assignRec.tsISO) + ' (activo)' : '—';
+
+      html += `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:20px">${tipoIcon(recs[0].tipo)}</span>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:13px">${recs[0].marca} ${recs[0].modelo}</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--muted)">${tag} · ${recs[0].tipo||'—'}</div>
+          </div>
+          <span class="duration-chip">⏱ ${duration}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${recs.map(r=>`
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${r.event==='asignado'?'var(--accent2)':'var(--danger)'};flex-shrink:0"></span>
+              <span style="font-weight:500;color:${r.event==='asignado'?'var(--accent2)':'var(--danger)'};text-transform:capitalize">${r.event}</span>
+              <span style="color:var(--muted);font-family:var(--mono);font-size:10px">${r.fecha}</span>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('assignHistContent').innerHTML = html;
+  document.getElementById('assignHistModal').classList.add('open');
+}
+
+function closeAssignHist() { document.getElementById('assignHistModal').classList.remove('open'); }
+
+// ── Close new modals on overlay click ─────────────────────────────────
+['offboardModal','qrModal','assignHistModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (e.target === document.getElementById(id)) document.getElementById(id).classList.remove('open');
+  });
+});
+
+// ── Check for ?tag= param on load (QR scan deep link) ─────────────────
+(function checkDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const tag = params.get('tag');
+  if (!tag) return;
+  setTimeout(() => {
+    const idx = equipos.findIndex(e => e.tag === tag);
+    if (idx >= 0) {
+      showPanel('inventario');
+      document.getElementById('searchInput').value = tag;
+      renderTable();
+      showToast(`Equipo ${tag} encontrado`, 'success');
+    }
+  }, 800);
+})();
+
+
 (async () => {
   await loadData();
   renderDashboard();
