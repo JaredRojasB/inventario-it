@@ -1053,18 +1053,13 @@ textarea { resize: vertical; min-height: 60px; }
       </div>
       <div class="form-group">
         <label>Tipo de Equipo</label>
-        <select id="f-tipo" class="modal-select">
-          <option>Laptop</option>
-          <option>Desktop</option>
+        <select id="f-tipo" class="modal-select" onchange="updateMarcaOptions()">
+          <option>Computadora</option>
           <option>Monitor</option>
-          <option>Servidor</option>
-          <option>Switch</option>
-          <option>Router</option>
-          <option>UPS</option>
-          <option>Impresora</option>
-          <option>Teléfono IP</option>
-          <option>Tablet</option>
-          <option>Otro</option>
+          <option>Headset</option>
+          <option>Kit Teclado Mouse</option>
+          <option>Adaptador Monitor (HDMI)</option>
+          <option>Camara Web</option>
         </select>
       </div>
       <div class="form-group">
@@ -1077,7 +1072,14 @@ textarea { resize: vertical; min-height: 60px; }
       </div>
       <div class="form-group">
         <label>Marca *</label>
-        <input type="text" id="f-marca" placeholder="Dell, HP, Lenovo…">
+        <div style="position:relative">
+          <select id="f-marca-select" class="modal-select" onchange="onMarcaSelect(this.value)" style="width:100%">
+          </select>
+        </div>
+        <div id="f-marca-custom-wrap" style="display:none;margin-top:6px;position:relative">
+          <input type="text" id="f-marca-custom" placeholder="Escribe la marca..." style="padding-right:80px">
+          <button type="button" onclick="cancelCustomMarca()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;font-family:var(--sans)">Volver</button>
+        </div>
       </div>
       <div class="form-group">
         <label>Modelo *</label>
@@ -1441,6 +1443,78 @@ function updateFilters() {
   sel('filterTipo','tipo');
 }
 
+
+// ═══════════════════════════════════════════
+//  MARCA INTELIGENTE POR TIPO
+// ═══════════════════════════════════════════
+const MARCAS_POR_TIPO = {
+  'Computadora':            ['Dell','HP','Lenovo','Apple','ASUS','Acer','Microsoft','Toshiba','Samsung'],
+  'Monitor':                ['Dell','LG','Samsung','HP','ASUS','Acer','ViewSonic','BenQ','AOC'],
+  'Headset':                ['Jabra','Logitech','Plantronics','Poly','Sony','Sennheiser','Bose','HP','JBL'],
+  'Kit Teclado Mouse':      ['Logitech','HP','Dell','Microsoft','Corsair','Razer','Genius','Havit'],
+  'Adaptador Monitor (HDMI)':['Dell','Belkin','Anker','HP','UGREEN','Plugable','StarTech','Cable Matters'],
+  'Camara Web':             ['Logitech','Microsoft','HP','Razer','Poly','Jabra','Anker','Elgato']
+};
+
+function updateMarcaOptions(preserveValue) {
+  const tipo = document.getElementById('f-tipo').value;
+  const marcas = MARCAS_POR_TIPO[tipo] || [];
+  // Merge with custom brands already in inventory for this type
+  const customBrands = [...new Set(
+    equipos.filter(e => e.tipo === tipo && e.marca).map(e => e.marca)
+  )].filter(m => !marcas.includes(m));
+  const allBrands = [...marcas, ...customBrands];
+
+  const sel = document.getElementById('f-marca-select');
+  const currentVal = preserveValue || '';
+  sel.innerHTML = allBrands.map(m =>
+    `<option value="${m}" ${m === currentVal ? 'selected' : ''}>${m}</option>`
+  ).join('');
+  sel.innerHTML += `<option value="__custom__" ${currentVal === '__custom__' ? 'selected' : ''}>✏️ Otra marca...</option>`;
+
+  // Hide custom input by default unless we're restoring a custom value
+  if (currentVal && !allBrands.includes(currentVal) && currentVal !== '') {
+    // It's a custom value not in our list
+    document.getElementById('f-marca-select').value = '__custom__';
+    document.getElementById('f-marca-custom-wrap').style.display = 'block';
+    document.getElementById('f-marca-custom').value = currentVal;
+  } else {
+    document.getElementById('f-marca-custom-wrap').style.display = 'none';
+    document.getElementById('f-marca-custom').value = '';
+  }
+}
+
+function onMarcaSelect(val) {
+  const wrap = document.getElementById('f-marca-custom-wrap');
+  if (val === '__custom__') {
+    wrap.style.display = 'block';
+    document.getElementById('f-marca-custom').focus();
+  } else {
+    wrap.style.display = 'none';
+    document.getElementById('f-marca-custom').value = '';
+  }
+}
+
+function cancelCustomMarca() {
+  document.getElementById('f-marca-select').value = MARCAS_POR_TIPO[document.getElementById('f-tipo').value]?.[0] || '';
+  document.getElementById('f-marca-custom-wrap').style.display = 'none';
+  document.getElementById('f-marca-custom').value = '';
+}
+
+function getMarcaValue() {
+  const sel = document.getElementById('f-marca-select').value;
+  if (sel === '__custom__') {
+    return document.getElementById('f-marca-custom').value.trim();
+  }
+  return sel;
+}
+
+function setMarcaValue(marca, tipo) {
+  // Set tipo first so options are generated for the right type
+  if (tipo) document.getElementById('f-tipo').value = tipo;
+  updateMarcaOptions(marca);
+}
+
 // ═══════════════════════════════════════════
 //  MODAL
 // ═══════════════════════════════════════════
@@ -1455,18 +1529,20 @@ function openModal(idx = null) {
     const e = equipos[idx];
     document.getElementById('f-tag').value = e.tag||'';
     document.getElementById('f-serie').value = e.serie||'';
-    document.getElementById('f-marca').value = e.marca||'';
+    setMarcaValue(e.marca||'', e.tipo||'Computadora');
     document.getElementById('f-modelo').value = e.modelo||'';
     document.getElementById('f-usuario').value = e.usuario||'';
     document.getElementById('f-fecha').value = e.fecha||'';
     document.getElementById('f-notas').value = e.notas||'';
-    document.getElementById('f-tipo').value = e.tipo||'Laptop';
+    document.getElementById('f-tipo').value = e.tipo||'Computadora';
     document.getElementById('f-estado').value = e.estado||'Activo';
     selectAssign(e.asignacion||'usuario');
   } else {
-    ['f-tag','f-serie','f-marca','f-modelo','f-usuario','f-notas'].forEach(id=>document.getElementById(id).value='');
+    ['f-tag','f-serie','f-modelo','f-usuario','f-notas'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-marca-custom').value = '';
     document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
-    document.getElementById('f-tipo').value = 'Laptop';
+    document.getElementById('f-tipo').value = 'Computadora';
+    updateMarcaOptions();
     document.getElementById('f-estado').value = 'Activo';
     selectAssign('usuario');
   }
@@ -1485,7 +1561,7 @@ function selectAssign(val) {
 async function saveEquipo() {
   const tag = document.getElementById('f-tag').value.trim();
   const serie = document.getElementById('f-serie').value.trim();
-  const marca = document.getElementById('f-marca').value.trim();
+  const marca = getMarcaValue();
   const modelo = document.getElementById('f-modelo').value.trim();
   if (!tag||!serie||!marca||!modelo) { showToast('Completa los campos obligatorios (*)','error'); return; }
   const dupTag = equipos.some((e,i)=>e.tag===tag && i!==editIndex);
@@ -1750,7 +1826,7 @@ function exportExcel() {
 function downloadTemplate() {
   const wb = XLSX.utils.book_new();
   const headers = ['TAG','Tipo','Marca','Modelo','Serie','Estado','Asignacion','Usuario','Fecha','Notas'];
-  const example = ['PC-001','Laptop','Dell','Latitude 5540','SN1234567','Activo','usuario','Juan Pérez','2025-01-15','Incluye cargador'];
+  const example = ['PC-001','Computadora','Dell','Latitude 5540','SN1234567','Activo','usuario','Juan Pérez','2025-01-15','Incluye cargador'];
   const ws = XLSX.utils.aoa_to_sheet([headers, example]);
   ws['!cols'] = [10,12,12,18,16,14,10,18,12,30].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
