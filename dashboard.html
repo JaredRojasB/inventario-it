@@ -227,6 +227,16 @@ footer {
   color:var(--muted);
 }
 
+
+.export-btn {
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--accent2);color:#0c0e18;
+  padding:9px 18px;border-radius:8px;border:none;
+  font-family:var(--sans);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all 0.2s;
+}
+.export-btn:hover { background:#00f5a8; transform:translateY(-1px); box-shadow:0 4px 16px rgba(0,212,146,0.35); }
+
 /* LOADING */
 #loading {
   position:fixed;
@@ -253,6 +263,7 @@ footer {
 #errorState .e-icon { font-size:40px;margin-bottom:12px; }
 #errorState p { color:var(--muted);font-size:14px; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -267,7 +278,10 @@ footer {
       <h1>💻 IT Assets Dashboard</h1>
       <p id="lastUpdate">Cargando...</p>
     </div>
-    <div class="live-badge"><div class="live-dot"></div> Datos en vivo · Auto-refresh 5min</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="export-btn" onclick="exportExcel()" id="exportBtn" disabled>📊 Descargar Excel</button>
+      <div class="live-badge"><div class="live-dot"></div> Datos en vivo · 5min</div>
+    </div>
   </header>
 
   <!-- KPIs -->
@@ -366,7 +380,9 @@ async function loadAndRender() {
       });
     }
 
+    _equiposCache = equipos;
     render(equipos);
+    document.getElementById('exportBtn').disabled = false;
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'block';
   } catch(e) {
@@ -510,6 +526,73 @@ function render(equipos) {
     <td style="font-weight:500;color:var(--warning)">${e.asignacion==='usuario'?e.usuario:'Bodega'}</td>
   </tr>`).join('');
   document.getElementById('tRepEmpty').style.display = rep.length===0?'block':'none';
+}
+
+
+let _equiposCache = [];
+
+function exportExcel() {
+  if (!_equiposCache.length) return;
+  const equipos = _equiposCache;
+  const now = new Date();
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Full
+  const h = ['TAG','Tipo','Marca','Modelo','No. Serie','Estado','Asignación','Usuario','Fecha'];
+  const data = [h, ...equipos.map(e=>[e.tag,e.tipo,e.marca,e.modelo,e.serie,e.estado,e.asignacion,e.usuario,e.fecha])];
+  const ws1 = XLSX.utils.aoa_to_sheet(data);
+  ws1['!cols'] = [10,16,12,18,16,14,12,18,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Inventario Completo');
+
+  // Sheet 2: Assigned
+  const users = equipos.filter(e=>e.asignacion==='usuario');
+  const ws2 = XLSX.utils.aoa_to_sheet([
+    ['TAG','Tipo','Marca','Modelo','Estado','Usuario'],
+    ...users.map(e=>[e.tag,e.tipo,e.marca,e.modelo,e.estado,e.usuario])
+  ]);
+  ws2['!cols'] = [10,16,12,18,14,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Asignados a Usuario');
+
+  // Sheet 3: Bodega
+  const bodega = equipos.filter(e=>e.asignacion==='bodega');
+  const ws3 = XLSX.utils.aoa_to_sheet([
+    ['TAG','Tipo','Marca','Modelo','Estado'],
+    ...bodega.map(e=>[e.tag,e.tipo,e.marca,e.modelo,e.estado])
+  ]);
+  ws3['!cols'] = [10,16,12,18,14].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws3, 'Bodega');
+
+  // Sheet 4: Resumen
+  const rep  = equipos.filter(e=>e.estado==='En reparación');
+  const baja = equipos.filter(e=>e.estado==='Dado de baja');
+  const marcas = {};
+  equipos.forEach(e=>{ if(e.marca) marcas[e.marca]=(marcas[e.marca]||0)+1; });
+  const ws4 = XLSX.utils.aoa_to_sheet([
+    ['REPORTE DE INVENTARIO IT'],
+    [`Generado: ${now.toLocaleString('es-MX')}`],
+    [],
+    ['Métrica','Cantidad'],
+    ['Total equipos', equipos.length],
+    ['Asignados a usuario', users.length],
+    ['En bodega', bodega.length],
+    ['En reparación', rep.length],
+    ['Dados de baja', baja.length],
+    ['Usuarios con equipo', new Set(users.map(e=>e.usuario).filter(Boolean)).size],
+    [],
+    ['Marca','Cantidad'],
+    ...Object.entries(marcas).sort((a,b)=>b[1]-a[1])
+  ]);
+  ws4['!cols'] = [{wch:28},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws4, 'Resumen');
+
+  const week = (() => {
+    const d = new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
+    d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7));
+    const y = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d-y)/86400000)+1)/7);
+  })();
+
+  XLSX.writeFile(wb, `Inventario_IT_Semana${week}_${now.getFullYear()}.xlsx`);
 }
 
 loadAndRender();
