@@ -1,1 +1,2 @@
 # inventario-it
+Plataforma creada con el proposito de automatizar el proceso de inventarios en el área de IT, la persona encargada puede capturar los datos de el equipo (Monitor, computador, accesorio) dentro del sitio y el sitio le dejara manerar un inventario preventivo de equipos, manejando alertas que son criticas, estado de los equipos, asignación de usuarios. Tambien le permite generar una vista "sencilla" para su superior y este enterado de los movimientos, esto permite exportar los activos en formato xls para el superior. 
