@@ -3462,6 +3462,16 @@ document.getElementById('pendienteModal').addEventListener('click', e => {
 });
 
 
+// Render immediately with empty data, then sync
+renderDashboard();
+updateSidebarFooter();
+
+// Sync in background
+// Render immediately so interface is usable right away
+renderDashboard();
+updateSidebarFooter();
+
+// Then sync with Google Sheets in background
 (async () => {
   await loadData();
   await loadUsersFromSheet();
