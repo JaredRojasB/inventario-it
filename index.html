@@ -3467,18 +3467,22 @@ renderDashboard();
 updateSidebarFooter();
 
 // Sync in background
-// Render immediately so interface is usable right away
+// Load interface immediately — no waiting
 renderDashboard();
 updateSidebarFooter();
 
-// Then sync with Google Sheets in background
-(async () => {
-  await loadData();
-  await loadUsersFromSheet();
-  await loadPendientes();
-  renderDashboard();
-  updateSidebarFooter();
-})();
+// Fire sheet sync in background — don't block UI
+setTimeout(async () => {
+  try {
+    await loadData();
+    await loadUsersFromSheet();
+    await loadPendientes();
+    renderDashboard();
+    updateSidebarFooter();
+  } catch(e) {
+    console.warn('Sync failed:', e);
+  }
+}, 100);
 </script>
 </body>
 </html>
