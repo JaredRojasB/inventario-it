@@ -1956,10 +1956,12 @@ function renderTable() {
 
   const filtered = getSortedFiltered();
   const tbody = document.getElementById('tableBody');
+  // Render in chunks to avoid blocking UI on large datasets
   tbody.innerHTML = '';
   document.getElementById('emptyState').style.display = filtered.length===0?'block':'none';
   document.getElementById('tableCount').textContent = `${filtered.length} de ${equipos.length} equipos`;
 
+  const fragment = document.createDocumentFragment();
   filtered.forEach(e => {
     const idx = equipos.indexOf(e);
     const incomplete = !e.tag||!e.serie||!e.marca||!e.modelo;
@@ -1996,8 +1998,9 @@ function renderTable() {
           <button class="btn btn-danger-soft" onclick="deleteEquipo(${idx})" title="Eliminar">🗑️</button>
         </div>
       </td>`;
-    tbody.appendChild(tr);
+    fragment.appendChild(tr);
   });
+  tbody.appendChild(fragment);
 
   updateFilters();
   updateSortIndicators();
@@ -3800,7 +3803,7 @@ function sortBy(col) {
 function getSortedFiltered() {
   const filtered = getFiltered();
   const dir = _sortDir === 'asc' ? 1 : -1;
-  return filtered.sort((a, b) => {
+  return filtered.slice().sort((a, b) => {
     let va = (a[_sortCol] || '').toString();
     let vb = (b[_sortCol] || '').toString();
     // Natural sort for TAGs like C00005, M00123
