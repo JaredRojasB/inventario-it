@@ -2567,7 +2567,15 @@ const GLPI_ESTADO_MAP = {
 
 function normalizeTipo(raw) {
   const key = (raw||'').toLowerCase().trim();
-  return GLPI_TIPO_MAP[key] || raw || 'Computadora';
+  if (GLPI_TIPO_MAP[key]) return GLPI_TIPO_MAP[key];
+  if (raw && raw.trim()) return raw.trim();
+  // Fallback based on current import type
+  const fallbacks = {
+    monitores: 'Monitor',
+    accesorios: 'Headset',
+    equipos: 'Computadora'
+  };
+  return fallbacks[importType] || 'Computadora';
 }
 
 function normalizeEstado(raw) {
@@ -3027,24 +3035,22 @@ function clearLocalCache() {
 async function clearAndReimport() {
   if (importType === 'usuarios') { confirmImport(); return; }
 
-  // Determine which types this import affects
   const allIncoming = [
     ...importData,
     ...importConflicts.map(c => c.incoming)
   ].filter(e => e.tag || e.serie);
 
-  const affectedTypes = [...new Set(allIncoming.map(e => e.tipo).filter(Boolean))];
-
-  // Type label for message
-  const typeLabels = {
-    equipos: 'Computadoras',
-    monitores: 'Monitores',
-    accesorios: 'Accesorios'
-  };
+  // Use importType to determine what gets replaced — not the data itself
+  const typeLabels = { equipos: 'Computadoras', monitores: 'Monitores', accesorios: 'Accesorios' };
   const tLabel = typeLabels[importType] || 'Equipos';
 
-  // Count existing of same types
-  const existingOfType = equipos.filter(e => affectedTypes.includes(e.tipo)).length;
+  const replaceTypes = {
+    equipos: ['Computadora'],
+    monitores: ['Monitor'],
+    accesorios: ['Headset', 'Kit Teclado Mouse', 'Adaptador Monitor (HDMI)', 'Camara Web']
+  };
+  const toReplace = replaceTypes[importType] || ['Computadora'];
+  const existingOfType = equipos.filter(e => toReplace.includes(e.tipo)).length;
 
   if (!confirm(`⚠️ Esto eliminará los ${existingOfType} ${tLabel} actuales y los reemplazará con los ${allIncoming.length} del archivo.
 
@@ -3052,8 +3058,8 @@ Los demás equipos NO se tocarán.
 
 ¿Continuar?`)) return;
 
-  // Keep equipment of OTHER types, replace only affected types
-  const kept = equipos.filter(e => !affectedTypes.includes(e.tipo));
+  // Keep only equipment NOT of this type
+  const kept = equipos.filter(e => !toReplace.includes(e.tipo));
   equipos = [...kept, ...allIncoming];
 
   await saveData();
