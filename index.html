@@ -2878,16 +2878,24 @@ function clearLocalCache() {
   setTimeout(() => location.reload(), 1200);
 }
 
-function clearAndReimport() {
-  if (importType === 'usuarios') {
-    confirmImport();
-    return;
-  }
-  if (!confirm(`⚠️ Esto eliminará los ${equipos.length} equipos actuales y los reemplazará con los ${importData.length + importConflicts.length} del archivo.\n\n¿Continuar?`)) return;
-  importConflicts.forEach(c => c.resolution = 'update');
-  equipos = [];
-  confirmImport();
+async function clearAndReimport() {
+  if (importType === 'usuarios') { confirmImport(); return; }
+  const total = importData.length + importConflicts.length;
+  if (!confirm(`⚠️ Esto eliminará los ${equipos.length} equipos actuales y los reemplazará con los ${total} del archivo.\n\n¿Continuar?`)) return;
+
+  // Tomar TODOS los datos del archivo (nuevos + conflictos)
+  const allData = [
+    ...importData,
+    ...importConflicts.map(c => c.incoming)
+  ].filter(e => e.tag || e.serie);
+
+  equipos = allData;
+  await saveData();
+  cancelImport();
+  renderTable();
+  showToast(`✅ ${allData.length} equipos importados desde cero`, 'success');
 }
+
 
 function cancelImport() {
   importData = [];
