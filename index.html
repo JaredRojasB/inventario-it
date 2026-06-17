@@ -1296,7 +1296,7 @@ textarea { resize: vertical; min-height: 60px; }
           <div style="padding:14px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);flex-wrap:wrap;align-items:center">
             <span id="importSummaryText" style="font-size:12px;color:var(--muted);margin-right:auto"></span>
             <button class="btn btn-ghost" onclick="cancelImport()">Cancelar</button>
-            <button class="btn btn-danger-soft" id="clearReimportBtn" onclick="clearAndReimport()" title="Borra todos los equipos actuales e importa desde cero" style="display:none">🗑️ Limpiar e importar desde cero</button>
+            <button class="btn btn-danger-soft" id="clearReimportBtn" onclick="clearAndReimport()" title="Reemplaza los equipos de este tipo e importa desde cero" style="display:none">🗑️ Reemplazar este tipo</button>
             <button class="btn btn-primary" id="confirmImportBtn" onclick="confirmImport()">Confirmar importación</button>
           </div>
         </div>
@@ -2507,8 +2507,13 @@ const GLPI_TIPO_MAP = {
   'monitor': 'Monitor',
   'headset': 'Headset', 'auriculares': 'Headset',
   'teclado': 'Kit Teclado Mouse', 'mouse': 'Kit Teclado Mouse',
-  'webcam': 'Camara Web', 'cámara': 'Camara Web', 'camara': 'Camara Web',
+  'kit teclado mouse logitech': 'Kit Teclado Mouse',
+  'kit teclado y mouse dell': 'Kit Teclado Mouse',
+  'kit teclado y mouse': 'Kit Teclado Mouse',
+  'mouse inalambrico': 'Kit Teclado Mouse',
+  'webcam': 'Camara Web', 'cámara': 'Camara Web', 'camara': 'Camara Web', 'camara web': 'Camara Web',
   'adaptador': 'Adaptador Monitor (HDMI)', 'hdmi': 'Adaptador Monitor (HDMI)',
+  'adaptador hdmi-usb': 'Adaptador Monitor (HDMI)', 'adaptador usb-hdmi': 'Adaptador Monitor (HDMI)',
 };
 
 const GLPI_ESTADO_MAP = {
@@ -2627,11 +2632,9 @@ function parseGLPIEquipos(headers, body) {
 
   const findCol = (...candidates) => {
     for (const c of candidates) {
-      // Strip BOM and normalize
       let i = headers.findIndex(h => h.replace(/^\uFEFF/, '').trim() === c);
       if (i >= 0) return i;
     }
-    // Fallback: partial match on first significant word
     for (const c of candidates) {
       const word = c.split(' ').find(w => w.length > 4);
       if (!word) continue;
@@ -2647,11 +2650,11 @@ function parseGLPIEquipos(headers, body) {
     tipo:    findCol('type'),
     modelo:  findCol('modelo'),
     serie:   findCol('número de serial', 'numero de serial'),
-    usuario: findCol('usuario'),
+    usuario: findCol('usuario', 'nombre de usuario alternativo'),
     estado:  findCol('status'),
     empresa: findCol('ubicación', 'ubicacion'),
     notas:   findCol('comentarios'),
-    fecha:   findCol('fecha de creación', 'fecha de creacion'),
+    fecha:   findCol('fecha de creación', 'fecha de creacion', 'última modificación', 'ultima modificacion'),
   };
 
   console.log('GLPI columns detected:', JSON.stringify(
@@ -2666,11 +2669,12 @@ function parseGLPIEquipos(headers, body) {
     // Rule: if Usuario is a real person name AND Ubicacion = company = assigned to that person
     const isSameAsLocation = rawUsuario && rawUbicacion &&
       rawUsuario.toLowerCase() === rawUbicacion.toLowerCase();
-    const locationPatterns = /^(meztal office|meztal|oficina|almacen|almacén|bodega|sala|piso|depto|departamento)/i;
+    const locationPatterns = /^(meztal office|meztal|oficina|almacen|almacén|bodega|sala|piso|depto|departamento|kare office)/i;
     const isLocationValue = locationPatterns.test(rawUsuario);
     const isRealUser = rawUsuario && !isSameAsLocation && !isLocationValue;
     const usuario = isRealUser ? rawUsuario : '';
-    const empresa = rawUbicacion || (isLocationValue ? rawUsuario : '');
+    const ubicNorm = rawUbicacion.replace(/bodega /i, '').replace(/BODEGA /i, '').trim();
+    const empresa = ubicNorm || (isLocationValue ? rawUsuario : '');
     const asignacion = isRealUser ? 'usuario' : 'bodega';
 
     // Clean fecha: "19-05-2022 15:29" → "2022-05-19"
@@ -2757,23 +2761,22 @@ function importFile(event) {
 }
 
 function processImport(rows) {
-  // monitores and accesorios use same equipos pipeline
-  const effectiveType = ['monitores','accesorios'].includes(importType) ? 'equipos' : importType;
-  const parsed = effectiveType === 'usuarios' ? parseRows(rows) : parseRows(rows);
-
   if (importType === 'usuarios') {
+    const parsed = parseRows(rows);
     showUsersPreview(parsed);
     return;
   }
 
-  // Split into new vs conflicts
+  const parsed = parseRows(rows);
+
+  // Split into new vs conflicts — only conflict within same equipment type
   importData = [];
   importConflicts = [];
 
   parsed.forEach(incoming => {
     const existIdx = equipos.findIndex(e =>
       (incoming.tag && e.tag === incoming.tag) ||
-      (incoming.serie && e.serie === incoming.serie)
+      (incoming.serie && incoming.serie.length > 4 && e.serie === incoming.serie)
     );
     if (existIdx >= 0) {
       importConflicts.push({ incoming, existing: equipos[existIdx], idx: existIdx, resolution: null });
@@ -2998,20 +3001,40 @@ function clearLocalCache() {
 
 async function clearAndReimport() {
   if (importType === 'usuarios') { confirmImport(); return; }
-  const total = importData.length + importConflicts.length;
-  if (!confirm(`⚠️ Esto eliminará los ${equipos.length} equipos actuales y los reemplazará con los ${total} del archivo.\n\n¿Continuar?`)) return;
 
-  // Tomar TODOS los datos del archivo (nuevos + conflictos)
-  const allData = [
+  // Determine which types this import affects
+  const allIncoming = [
     ...importData,
     ...importConflicts.map(c => c.incoming)
   ].filter(e => e.tag || e.serie);
 
-  equipos = allData;
+  const affectedTypes = [...new Set(allIncoming.map(e => e.tipo).filter(Boolean))];
+
+  // Type label for message
+  const typeLabels = {
+    equipos: 'Computadoras',
+    monitores: 'Monitores',
+    accesorios: 'Accesorios'
+  };
+  const tLabel = typeLabels[importType] || 'Equipos';
+
+  // Count existing of same types
+  const existingOfType = equipos.filter(e => affectedTypes.includes(e.tipo)).length;
+
+  if (!confirm(`⚠️ Esto eliminará los ${existingOfType} ${tLabel} actuales y los reemplazará con los ${allIncoming.length} del archivo.
+
+Los demás equipos NO se tocarán.
+
+¿Continuar?`)) return;
+
+  // Keep equipment of OTHER types, replace only affected types
+  const kept = equipos.filter(e => !affectedTypes.includes(e.tipo));
+  equipos = [...kept, ...allIncoming];
+
   await saveData();
   cancelImport();
   showPanel('dashboard');
-  showToast(`✅ Equipos: ${allData.length} importados desde cero`, 'success');
+  showToast(`✅ ${tLabel}: ${allIncoming.length} importados. ${kept.length} equipos de otros tipos conservados.`, 'success');
 }
 
 
