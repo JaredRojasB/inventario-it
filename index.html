@@ -1011,15 +1011,13 @@ textarea { resize: vertical; min-height: 60px; }
             <thead>
               <tr>
                 <th>TAG</th>
-                <th>Tipo</th>
-                <th>Marca</th>
-                <th>Modelo</th>
+                <th>Marca / Modelo</th>
                 <th>No. Serie</th>
+                <th>Tipo</th>
                 <th>Estado</th>
-                <th>Asignación</th>
                 <th>Usuario</th>
                 <th>Empresa</th>
-                <th>Registro</th>
+                <th>Fecha</th>
                 <th></th>
               </tr>
             </thead>
@@ -1522,7 +1520,7 @@ function parseEquiposRows(rows) {
         tag: get('tag'), tipo: get('tipo'), marca: get('marca'),
         modelo: get('modelo'), serie: get('serie'), estado: get('estado') || 'Activo',
         asignacion: get('asignacion') || 'bodega', usuario: get('usuario'),
-        empresa: get('empresa'), fecha: get('fecha'), notas: get('notas')
+        empresa: get('empresa'), fecha: (get('fecha')||'').slice(0,10), notas: get('notas')
       };
     })
     .filter(e => e.tag || e.serie || e.marca);
@@ -1566,6 +1564,10 @@ async function loadData() {
 // ── Write to Sheets ───────────────────────
 async function saveData() {
   updateSidebarFooter();
+  setSyncStatus('syncing');
+  showToast(`Guardando ${equipos.length} equipos en Sheets...`);
+  const countEl = document.getElementById('sidebar-count');
+  if (countEl) countEl.textContent = 'Guardando...';
   try {
     const headers = ['TAG','Tipo','Marca','Modelo','Serie','Estado','Asignacion','Usuario','Empresa','Fecha','Notas'];
     const rows = [headers, ...equipos.map(e => [
@@ -1573,13 +1575,14 @@ async function saveData() {
       e.estado||'Activo', e.asignacion||'bodega', e.usuario||'',
       e.empresa||'', e.fecha||'', e.notas||''
     ])];
-    // POST still uses fetch — GAS handles CORS for POST differently
     await fetch(SHEET_URL, {
       method: 'POST',
       mode: 'no-cors',
       body: JSON.stringify({ action: 'equipos', data: rows })
     });
     setSyncStatus('ok');
+    updateSidebarFooter();
+    showToast('✅ Guardado en Google Sheets', 'success');
   } catch(e) {
     setSyncStatus('error');
     showToast('Error al guardar en Sheets', 'warning');
@@ -1808,21 +1811,26 @@ function renderTable() {
     const incomplete = !e.tag||!e.serie||!e.marca||!e.modelo;
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="mono-cell" style="color:var(--accent);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.tag||'<span style="color:var(--muted)">—</span>'} ${incomplete?'<span class="warn-icon" title="Datos incompletos">⚠️</span>':''}</td>
-      <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(e.marca||'')+' '+(e.modelo||'')}">
+      <td class="mono-cell" style="color:var(--accent);font-weight:600;white-space:nowrap">${e.tag||'—'} ${incomplete?'<span title="Datos incompletos" style="color:var(--warning)">⚠️</span>':''}</td>
+      <td style="max-width:160px">
         <div style="font-weight:500;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.marca||'—'}</div>
         <div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.modelo||'—'}</div>
       </td>
-      <td class="mono-cell" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${e.serie||'—'}</td>
-      <td><span class="badge b-type" style="font-size:10px">${e.tipo||'—'}</span></td>
-      <td>${estadoBadge(e.estado)}</td>
-      <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${e.usuario||'<span style="color:var(--muted)">—</span>'}</td>
-      <td style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.empresa||''}">${e.empresa||'—'}</td>
-      <td style="font-size:12px">${(() => {
-        if (!e.fecha) return '<span style="color:var(--muted)">—</span>';
-        const year = parseInt((e.fecha||'0').slice(0,4));
-        if (year > 0 && year < 2022) return `<span style="color:var(--warning);font-weight:600" title="Equipo antiguo (${year})">📅 ${e.fecha} ⚠️</span>`;
-        return `<span style="color:var(--muted)">${e.fecha}</span>`;
+      <td class="mono-cell" style="font-size:11px;white-space:nowrap">${e.serie||'—'}</td>
+      <td><span class="badge b-type" style="font-size:10px;white-space:nowrap">${e.tipo||'—'}</span></td>
+      <td style="white-space:nowrap">${estadoBadge(e.estado)}</td>
+      <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        ${e.usuario
+          ? `<span style="color:var(--accent)">${e.usuario}</span>`
+          : `<span class="badge b-bodega" style="font-size:10px">Bodega</span>`}
+      </td>
+      <td style="font-size:11px;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.empresa||''}">${e.empresa||'—'}</td>
+      <td style="font-size:11px;white-space:nowrap">${(() => {
+        const f = (e.fecha||'').slice(0,10);
+        if (!f) return '<span style="color:var(--muted)">—</span>';
+        const year = parseInt(f.slice(0,4));
+        if (year > 0 && year < 2022) return `<span style="color:var(--warning);font-weight:600">⚠️ ${f}</span>`;
+        return `<span style="color:var(--muted)">${f}</span>`;
       })()}</td>
       <td>
         <div style="display:flex;gap:4px">
