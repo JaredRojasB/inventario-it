@@ -3460,27 +3460,21 @@ document.getElementById('pendienteModal').addEventListener('click', e => {
 });
 
 
-// Render immediately with empty data, then sync
+function openGoogleSheet() {
+  window.open('https://drive.google.com/drive/search?q=InventarioTech', '_blank');
+}
+
+// Render immediately, sync in background
 renderDashboard();
 updateSidebarFooter();
 
-// Sync in background
-// Load interface immediately — no waiting
-renderDashboard();
-updateSidebarFooter();
-
-// Fire sheet sync in background — don't block UI
 setTimeout(async () => {
-  try {
-    await loadData();
-    await loadUsersFromSheet();
-    await loadPendientes();
-    renderDashboard();
-    updateSidebarFooter();
-  } catch(e) {
-    console.warn('Sync failed:', e);
-  }
-}, 100);
+  await loadData();
+  await loadUsersFromSheet();
+  await loadPendientes();
+  renderDashboard();
+  updateSidebarFooter();
+}, 0);
 </script>
 </body>
 </html>
