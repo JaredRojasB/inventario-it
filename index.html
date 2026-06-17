@@ -60,18 +60,17 @@ body {
   overflow: hidden;
 }
 
-.sidebar.collapsed { width: 56px; }
+.sidebar.collapsed { width: 52px; }
 .sidebar.collapsed .app-sub,
 .sidebar.collapsed .version-badge,
 .sidebar.collapsed .nav-section,
-.sidebar.collapsed .nav-item span:not(.nav-icon),
-.sidebar.collapsed .nav-badge,
-.sidebar.collapsed #sidebar-count { display: none !important; }
-.sidebar.collapsed .nav-item { justify-content: center; padding: 10px; }
-.sidebar.collapsed .nav-icon { font-size: 18px; width: auto; }
+.sidebar.collapsed .sidebar-footer { display: none !important; }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 10px 0; }
+.sidebar.collapsed .nav-item > span:last-of-type { display: none; }
+.sidebar.collapsed .nav-icon { font-size: 17px; width: 100%; text-align:center; }
 .sidebar.collapsed .app-name { display: none; }
-.sidebar.collapsed #sidebarToggle { content: "▶"; }
-.main.expanded { margin-left: 56px; }
+.sidebar.collapsed .sidebar-logo { justify-content: center; padding: 14px 0; }
+.main.expanded { margin-left: 52px; }
 
 .sidebar-logo {
   padding: 20px 18px 16px;
@@ -1015,7 +1014,7 @@ textarea { resize: vertical; min-height: 60px; }
         <select id="filterUsuario" onchange="renderTable()">
           <option value="">Empleado: Todos</option>
         </select>
-        <button class="btn btn-danger-soft" onclick="deleteAllEquipos()" style="white-space:nowrap">🗑️ Borrar todo</button>
+        <button class="btn btn-ghost btn-sm" onclick="deleteSelected()" style="white-space:nowrap;color:var(--danger);border-color:var(--danger)">🗑️ Borrar selección</button><button class="btn btn-danger-soft" onclick="deleteAllEquipos()" style="white-space:nowrap">🗑️ Borrar todo</button>
       </div>
 
       <div class="table-card">
@@ -1027,6 +1026,7 @@ textarea { resize: vertical; min-height: 60px; }
           <table style="min-width:900px">
             <thead>
               <tr>
+                <th style="width:32px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="cursor:pointer"></th>
                 <th>TAG</th>
                 <th>Marca / Modelo</th>
                 <th>No. Serie</th>
@@ -1065,6 +1065,7 @@ textarea { resize: vertical; min-height: 60px; }
             <option value="con_equipo">Con equipo asignado</option>
             <option value="sin_equipo">Sin equipo</option>
           </select>
+          <button class="btn btn-danger-soft" onclick="deleteAllUsers()" style="white-space:nowrap">🗑️ Borrar usuarios</button>
         </div>
         <div id="empStats" style="font-size:12px;color:var(--muted);font-family:var(--mono)"></div>
       </div>
@@ -1828,6 +1829,7 @@ function renderTable() {
     const incomplete = !e.tag||!e.serie||!e.marca||!e.modelo;
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <td style="width:32px"><input type="checkbox" class="eq-checkbox" data-idx="${idx}" style="cursor:pointer"></td>
       <td class="mono-cell" style="color:var(--accent);font-weight:600;white-space:nowrap">${e.tag||'—'} ${incomplete?'<span title="Datos incompletos" style="color:var(--warning)">⚠️</span>':''}</td>
       <td style="max-width:160px">
         <div style="font-weight:500;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.marca||'—'}</div>
@@ -3524,6 +3526,31 @@ function toggleSidebar() {
   }
 })();
 
+
+
+
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.eq-checkbox').forEach(c => c.checked = cb.checked);
+}
+
+async function deleteSelected() {
+  const checked = [...document.querySelectorAll('.eq-checkbox:checked')];
+  if (!checked.length) { showToast('Selecciona equipos primero', 'warning'); return; }
+  if (!confirm(`¿Eliminar ${checked.length} equipo(s) seleccionado(s)?`)) return;
+  const indices = checked.map(c => parseInt(c.dataset.idx)).sort((a,b) => b-a);
+  indices.forEach(i => equipos.splice(i, 1));
+  await saveData();
+  renderTable();
+  showToast(`${indices.length} equipo(s) eliminados`, 'success');
+}
+
+async function deleteAllUsers() {
+  if (!confirm(`⚠️ ¿Eliminar los ${_cachedUsers.length} usuarios registrados? Los equipos asignados quedarán sin usuario.`)) return;
+  _cachedUsers = [];
+  await saveUsersToSheet([]);
+  renderUsers();
+  showToast('Usuarios eliminados', 'success');
+}
 
 async function deleteAllEquipos() {
   if (!confirm(`⚠️ ¿Eliminar los ${equipos.length} equipos del inventario? Esta acción no se puede deshacer.`)) return;
