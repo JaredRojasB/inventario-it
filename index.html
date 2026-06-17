@@ -1193,9 +1193,26 @@ textarea { resize: vertical; min-height: 60px; }
     <div class="panel" id="panel-importar">
 
       <!-- IMPORT TYPE SELECTOR -->
-      <div style="display:flex;gap:8px;margin-bottom:20px">
-        <button class="btn btn-primary" id="itype-equipos" onclick="setImportType('equipos')" style="flex:1;justify-content:center">🖥️ Importar Equipos</button>
-        <button class="btn btn-ghost" id="itype-usuarios" onclick="setImportType('usuarios')" style="flex:1;justify-content:center">👥 Importar Usuarios</button>
+      <div style="margin-bottom:20px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">¿Qué vas a importar?</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost" id="itype-equipos" onclick="setImportType('equipos')" style="flex:1;min-width:120px;justify-content:center;flex-direction:column;padding:12px;gap:4px">
+            <span style="font-size:20px">💻</span>
+            <span style="font-size:12px">Computadoras</span>
+          </button>
+          <button class="btn btn-ghost" id="itype-monitores" onclick="setImportType('monitores')" style="flex:1;min-width:120px;justify-content:center;flex-direction:column;padding:12px;gap:4px">
+            <span style="font-size:20px">🖥️</span>
+            <span style="font-size:12px">Monitores</span>
+          </button>
+          <button class="btn btn-ghost" id="itype-accesorios" onclick="setImportType('accesorios')" style="flex:1;min-width:120px;justify-content:center;flex-direction:column;padding:12px;gap:4px">
+            <span style="font-size:20px">🎧</span>
+            <span style="font-size:12px">Accesorios</span>
+          </button>
+          <button class="btn btn-ghost" id="itype-usuarios" onclick="setImportType('usuarios')" style="flex:1;min-width:120px;justify-content:center;flex-direction:column;padding:12px;gap:4px">
+            <span style="font-size:20px">👥</span>
+            <span style="font-size:12px">Usuarios</span>
+          </button>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" class="import-grid">
@@ -2450,7 +2467,7 @@ function downloadTemplate() {
 // ═══════════════════════════════════════════
 let importData      = [];   // new records
 let importConflicts = [];   // { incoming, existing, idx, resolution: 'update'|'skip' }
-let importType      = 'equipos';   // 'equipos' | 'usuarios'
+let importType      = 'equipos';   // 'equipos' | 'monitores' | 'accesorios' | 'usuarios'
 let importSource    = 'glpi';      // 'glpi' | 'propio'
 let importUsersData = [];  // parsed users
 
@@ -2531,26 +2548,46 @@ function normalizeEstado(raw) {
 // ── UI controls ───────────────────────────────────────────────────────
 function setImportType(type) {
   importType = type;
-  document.getElementById('itype-equipos').className = type==='equipos' ? 'btn btn-primary' : 'btn btn-ghost';
-  document.getElementById('itype-usuarios').className = type==='usuarios' ? 'btn btn-primary' : 'btn btn-ghost';
-  document.getElementById('itype-equipos').style = 'flex:1;justify-content:center';
-  document.getElementById('itype-usuarios').style = 'flex:1;justify-content:center';
+  
+  // Update button styles
+  ['equipos','monitores','accesorios','usuarios'].forEach(t => {
+    const btn = document.getElementById('itype-' + t);
+    if (!btn) return;
+    if (t === type) {
+      btn.className = 'btn btn-primary';
+      btn.style = 'flex:1;min-width:120px;justify-content:center;flex-direction:column;padding:12px;gap:4px';
+    } else {
+      btn.className = 'btn btn-ghost';
+      btn.style = 'flex:1;min-width:120px;justify-content:center;flex-direction:column;padding:12px;gap:4px';
+    }
+  });
 
-  const title = type==='equipos' ? '📥 Importar Equipos desde GLPI / Excel' : '📥 Importar Usuarios desde GLPI';
-  document.getElementById('importCardTitle').textContent = title;
+  const titles = {
+    equipos: '📥 Importar Computadoras desde GLPI / Excel',
+    monitores: '📥 Importar Monitores desde GLPI / Excel',
+    accesorios: '📥 Importar Accesorios (Headsets, Teclados, Cámaras...)',
+    usuarios: '📥 Importar Usuarios / Empleados desde GLPI'
+  };
+  document.getElementById('importCardTitle').textContent = titles[type] || titles.equipos;
 
   const hint = document.getElementById('colsHint');
   if (type === 'usuarios') {
     hint.innerHTML = `<div style="font-size:11px;font-weight:600;margin-bottom:6px;color:var(--text2)">Columnas que se leerán de GLPI (usuarios):</div>
       <div style="font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.9">
-        Nombre + Apellido → Usuario<br>Categoría → Empresa<br>Correos electrónicos → Email
+        Nombre + Apellido → Nombre completo<br>Categoría → Empresa<br>Correos electrónicos → Email
+      </div>`;
+  } else if (type === 'accesorios') {
+    hint.innerHTML = `<div style="font-size:11px;font-weight:600;margin-bottom:6px;color:var(--text2)">Accesorios que se importarán:</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.9">
+        Headsets · Kits Teclado Mouse<br>Cámaras Web · Adaptadores HDMI<br>Tipo se asigna automáticamente desde GLPI
       </div>`;
   } else {
-    hint.innerHTML = `<div style="font-size:11px;font-weight:600;margin-bottom:6px;color:var(--text2)">Columnas que se leerán de GLPI:</div>
+    const tipName = type === 'monitores' ? 'Monitores' : 'Computadoras';
+    hint.innerHTML = `<div style="font-size:11px;font-weight:600;margin-bottom:6px;color:var(--text2)">Columnas que se leerán de GLPI (${tipName}):</div>
       <div style="font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.9">
         Número de inventario → TAG<br>Fabricante → Marca<br>Type → Tipo<br>
         Modelo → Modelo<br>Número de serial → Serie<br>Usuario → Usuario<br>
-        Status → Estado<br>Ubicación → Empresa<br>Comentarios → Notas<br>Fecha de creación → Fecha
+        Status → Estado<br>Ubicación → Empresa<br>Comentarios → Notas
       </div>`;
   }
   cancelImport();
@@ -2720,7 +2757,9 @@ function importFile(event) {
 }
 
 function processImport(rows) {
-  const parsed = parseRows(rows);
+  // monitores and accesorios use same equipos pipeline
+  const effectiveType = ['monitores','accesorios'].includes(importType) ? 'equipos' : importType;
+  const parsed = effectiveType === 'usuarios' ? parseRows(rows) : parseRows(rows);
 
   if (importType === 'usuarios') {
     showUsersPreview(parsed);
@@ -2877,7 +2916,9 @@ async function confirmImport() {
   await saveData();
   cancelImport();
   showPanel('dashboard');
-  showToast(`✅ Equipos importados: ${added} nuevos · ${updated} actualizados · ${skipped} ignorados`, 'success');
+  const typeLabels = { equipos:'Computadoras', monitores:'Monitores', accesorios:'Accesorios', usuarios:'Usuarios' };
+  const tLabel = typeLabels[importType] || 'Equipos';
+  showToast(`✅ ${tLabel}: ${added} nuevos · ${updated} actualizados · ${skipped} ignorados`, 'success');
 }
 
 async function confirmUsersImport() {
