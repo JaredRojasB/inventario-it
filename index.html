@@ -2414,6 +2414,7 @@ const GLPI_ESTADO_MAP = {
   'equipo desechado': 'Dado de baja',
   'desechado': 'Dado de baja',
   'equipo viejo / ya no se entrega': 'Dado de baja',
+  'equipo viejo': 'Dado de baja',
   'equipo dañado': 'Dado de baja',
   'dañado': 'Dado de baja',
   'danado': 'Dado de baja',
@@ -2562,13 +2563,19 @@ function parseGLPIEquipos(headers, body) {
       else fecha = fecha.split(' ')[0];
     }
 
+    // Si Ubicación dice DESECHADO → forzar Dado de baja
+    const ubicRaw = g('empresa').toUpperCase();
+    const estadoFinal = ubicRaw.includes('DESECH') || ubicRaw.includes('RECICL') || ubicRaw.includes('RECILAD')
+      ? 'Dado de baja'
+      : normalizeEstado(g('estado'));
+
     return {
       tag:     g('tag'),
       marca:   g('marca'),
       tipo:    normalizeTipo(g('tipo')),
       modelo:  g('modelo'),
       serie:   g('serie'),
-      estado:  normalizeEstado(g('estado')),
+      estado:  estadoFinal,
       asignacion,
       usuario,
       empresa,
