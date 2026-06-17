@@ -904,38 +904,40 @@ textarea { resize: vertical; min-height: 60px; }
 <div class="layout">
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-logo" style="position:relative;padding-right:36px">
-    <div class="app-name">💻 InventarioTech</div>
-    <div class="app-sub">IT Asset Manager</div>
-    <span class="version-badge">v2.0 PRO</span>
-    <button id="sidebarToggle" onclick="toggleSidebar()" style="position:absolute;top:50%;right:8px;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:16px;padding:4px;line-height:1;z-index:10" title="Colapsar menú">◀</button>
+  <div class="sidebar-logo" style="display:flex;align-items:center;justify-content:space-between;padding:16px 14px;border-bottom:1px solid rgba(255,255,255,0.08)">
+    <div class="sidebar-logo-content">
+      <div class="app-name" style="font-family:var(--mono);font-size:14px;font-weight:600;color:white">💻 InventarioTech</div>
+      <div class="app-sub" style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;font-family:var(--mono)">IT Asset Manager</div>
+      <span class="version-badge" style="display:inline-block;background:var(--accent);color:white;font-size:9px;font-family:var(--mono);padding:1px 6px;border-radius:4px;margin-top:4px">v2.0 PRO</span>
+    </div>
+    <button id="sidebarToggle" onclick="toggleSidebar()" title="Colapsar menú" style="background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:14px;padding:4px 6px;border-radius:6px;line-height:1;flex-shrink:0">◀</button>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-section">Principal</div>
     <button class="nav-item active" onclick="showPanel('dashboard')" id="nav-dashboard">
-      <span class="nav-icon">📊</span> Dashboard
+      <span class="nav-icon">📊</span> <span class="nav-label">Dashboard</span>
     </button>
     <button class="nav-item" onclick="showPanel('inventario')" id="nav-inventario">
-      <span class="nav-icon">🖥️</span> Inventario
+      <span class="nav-icon">🖥️</span> <span class="nav-label">Inventario</span>
     </button>
     <button class="nav-item" onclick="showPanel('usuarios')" id="nav-usuarios">
-      <span class="nav-icon">👥</span> Empleados
+      <span class="nav-icon">👥</span> <span class="nav-label">Empleados</span>
     </button>
     <div class="nav-section">Reportes</div>
     <button class="nav-item" onclick="showPanel('reporte')" id="nav-reporte">
-      <span class="nav-icon">📋</span> Reporte Semanal
+      <span class="nav-icon">📋</span> <span class="nav-label">Reporte Semanal</span>
     </button>
     <div class="nav-section">Administración</div>
     <button class="nav-item" onclick="showPanel('pendientes')" id="nav-pendientes">
-      <span class="nav-icon">📌</span> Pendientes
+      <span class="nav-icon">📌</span> <span class="nav-label">Pendientes</span>
       <span class="nav-badge" id="pendientesBadge">0</span>
     </button>
     <button class="nav-item" onclick="showPanel('log')" id="nav-log">
-      <span class="nav-icon">🕐</span> Log de Actividad
+      <span class="nav-icon">🕐</span> <span class="nav-label">Log de Actividad</span>
     </button>
     <div class="nav-section">Datos</div>
     <button class="nav-item" onclick="showPanel('importar')" id="nav-importar">
-      <span class="nav-icon">📥</span> Importar
+      <span class="nav-icon">📥</span> <span class="nav-label">Importar</span>
     </button>
   </nav>
   <div class="sidebar-footer" id="sidebar-footer" style="display:flex;flex-direction:column;gap:4px">
@@ -3516,10 +3518,10 @@ function toggleSidebar() {
   const collapsed = sidebar.classList.toggle('collapsed');
   main.classList.toggle('expanded', collapsed);
   btn.textContent = collapsed ? '▶' : '◀';
-  localStorage.setItem('sidebarCollapsed', collapsed);
+  localStorage.setItem('sidebarCollapsed', collapsed ? 'true' : 'false');
 }
 
-// Restore sidebar state
+// Restore sidebar state on load
 (function() {
   if (localStorage.getItem('sidebarCollapsed') === 'true') {
     document.getElementById('sidebar').classList.add('collapsed');
