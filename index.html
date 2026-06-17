@@ -3464,17 +3464,22 @@ function openGoogleSheet() {
   window.open('https://drive.google.com/drive/search?q=InventarioTech', '_blank');
 }
 
-// Render immediately, sync in background
+// Render immediately so UI is fully interactive
 renderDashboard();
 updateSidebarFooter();
 
+// Sync after 2 seconds so UI is never blocked
 setTimeout(async () => {
   await loadData();
   await loadUsersFromSheet();
   await loadPendientes();
   renderDashboard();
   updateSidebarFooter();
-}, 0);
+  // Refresh current panel if needed
+  const active = document.querySelector('.panel.active');
+  if (active && active.id === 'panel-inventario') renderTable();
+  if (active && active.id === 'panel-usuarios') renderUsers();
+}, 2000);
 </script>
 </body>
 </html>
