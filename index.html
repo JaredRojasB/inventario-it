@@ -2184,8 +2184,8 @@ function renderUsers() {
       </td>
       <td>
         <div style="display:flex;gap:4px">
-          <button class="assign-history-btn" onclick="showAssignHistory('${u.fullName.replace(/'/g,'\\'')}')" title="Historial">📋</button>
-          ${hasEq ? `<button class="btn btn-danger-soft" onclick="startOffboard('${u.fullName.replace(/'/g,'\\'')}')" title="Offboarding">🚪</button>` : ''}
+          <button class="assign-history-btn" onclick="showAssignHistory('${u.fullName.replace(/[^a-zA-Z0-9 ]/g,'')}')" title="Historial">📋</button>
+          ${hasEq ? `<button class="btn btn-danger-soft" onclick="startOffboard('${u.fullName.replace(/[^a-zA-Z0-9 ]/g,'')}')" title="Offboarding">🚪</button>` : ''}
         </div>
       </td>
     </tr>`;
