@@ -519,7 +519,6 @@ const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwuD1OsLy7dIMTRVEmo0q
 async function loadAndRender() {
   try {
     const rows = await jsonpFetch(SHEET_URL);
-    const rows = await res.json();
 
     let equipos = [];
     if (Array.isArray(rows) && rows.length > 1) {
@@ -535,12 +534,10 @@ async function loadAndRender() {
     _equiposCache = equipos;
     render(equipos);
     document.getElementById('exportBtn').disabled = false;
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
   } catch(e) {
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    document.getElementById('errorState').style.display = 'block';
+    const err = document.getElementById('errorState');
+    if (err) err.style.display = 'block';
+    console.warn('Error cargando datos:', e);
   }
 }
 
@@ -772,7 +769,6 @@ let dashPendFilter = '';
 async function loadDashPendientes() {
   try {
     const data = await jsonpFetch(SHEET_URL_PEND + '?action=pendientes');
-    const data = await res.json();
     if (Array.isArray(data)) dashPendientes = data;
   } catch(e) {
     dashPendientes = [];
@@ -911,8 +907,15 @@ document.getElementById('dashPendModal').addEventListener('click', e => {
   if (e.target === document.getElementById('dashPendModal')) closeDashPendModal();
 });
 
-loadDashPendientes();
-loadAndRender();
+// Show app immediately
+document.getElementById('loading').style.display = 'none';
+document.getElementById('app').style.display = 'block';
+
+// Load data in background
+setTimeout(() => {
+  loadAndRender();
+  loadDashPendientes();
+}, 0);
 </script>
 </body>
 </html>
