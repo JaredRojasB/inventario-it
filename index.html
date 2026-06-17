@@ -918,7 +918,16 @@ textarea { resize: vertical; min-height: 60px; }
       <span class="nav-icon">📊</span> <span class="nav-label">Dashboard</span>
     </button>
     <button class="nav-item" onclick="showPanel('inventario')" id="nav-inventario">
-      <span class="nav-icon">🖥️</span> <span class="nav-label">Inventario</span>
+      <span class="nav-icon">📦</span> <span class="nav-label">Inventario</span>
+    </button>
+    <button class="nav-item" onclick="filterAndGo('Computadora')" id="nav-computadoras">
+      <span class="nav-icon">💻</span> <span class="nav-label">Computadoras</span>
+    </button>
+    <button class="nav-item" onclick="filterAndGo('Monitor')" id="nav-monitores">
+      <span class="nav-icon">🖥️</span> <span class="nav-label">Monitores</span>
+    </button>
+    <button class="nav-item" onclick="filterAndGo('accesorio')" id="nav-accesorios">
+      <span class="nav-icon">🎧</span> <span class="nav-label">Accesorios</span>
     </button>
     <button class="nav-item" onclick="showPanel('usuarios')" id="nav-usuarios">
       <span class="nav-icon">👥</span> <span class="nav-label">Empleados</span>
@@ -1009,7 +1018,7 @@ textarea { resize: vertical; min-height: 60px; }
           <option value="En reparación">🔧 En reparación</option>
           <option value="Dado de baja">❌ Dado de baja</option>
         </select>
-        <select id="filterTipo" onchange="renderTable()">
+        <select id="filterTipo" onchange="_filterTipos=null;renderTable()">
           <option value="">Tipo: Todos</option>
         </select>
         <select id="filterMarca" onchange="renderTable()">
@@ -1727,6 +1736,9 @@ function updateSidebarFooter() {
 const panelTitles = {
   dashboard: 'Dashboard',
   inventario: 'Inventario de Equipos',
+  computadoras: 'Computadoras',
+  monitores: 'Monitores',
+  accesorios: 'Accesorios',
   usuarios: 'Empleados',
   reporte: 'Reporte Semanal',
   importar: 'Importar / Exportar',
@@ -1778,12 +1790,24 @@ function renderDashboard() {
   // Type breakdown row
   const typeGrid = document.getElementById('kpiGridTypes');
   if (typeGrid) {
+    const cardStyle = 'padding:12px 16px;cursor:pointer;transition:transform 0.1s,box-shadow 0.1s' + 
+      ';' + '--hover:box-shadow:var(--shadow-md)';
     typeGrid.innerHTML = `
-      <div class="kpi-card blue" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">💻</span><div><div class="kpi-num" style="font-size:22px">${compus}</div><div class="kpi-label">Computadoras</div></div></div></div>
-      <div class="kpi-card green" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🖥️</span><div><div class="kpi-num" style="font-size:22px">${monitores}</div><div class="kpi-label">Monitores</div></div></div></div>
-      <div class="kpi-card yellow" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🎧</span><div><div class="kpi-num" style="font-size:22px">${headsets}</div><div class="kpi-label">Headsets</div></div></div></div>
-      <div class="kpi-card purple" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⌨️</span><div><div class="kpi-num" style="font-size:22px">${teclados}</div><div class="kpi-label">Kits Teclado</div></div></div></div>
-      <div class="kpi-card red" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📦</span><div><div class="kpi-num" style="font-size:22px">${otros}</div><div class="kpi-label">Otros</div></div></div></div>
+      <div class="kpi-card blue" style="${cardStyle}" onclick="filterAndGo('Computadora')" title="Ver computadoras">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">💻</span><div><div class="kpi-num" style="font-size:22px">${compus}</div><div class="kpi-label">Computadoras</div></div></div>
+      </div>
+      <div class="kpi-card green" style="${cardStyle}" onclick="filterAndGo('Monitor')" title="Ver monitores">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🖥️</span><div><div class="kpi-num" style="font-size:22px">${monitores}</div><div class="kpi-label">Monitores</div></div></div>
+      </div>
+      <div class="kpi-card yellow" style="${cardStyle}" onclick="filterAndGo('accesorio')" title="Ver accesorios">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🎧</span><div><div class="kpi-num" style="font-size:22px">${headsets}</div><div class="kpi-label">Headsets</div></div></div>
+      </div>
+      <div class="kpi-card purple" style="${cardStyle}" onclick="filterAndGo('accesorio')" title="Ver accesorios">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⌨️</span><div><div class="kpi-num" style="font-size:22px">${teclados}</div><div class="kpi-label">Kits Teclado</div></div></div>
+      </div>
+      <div class="kpi-card red" style="${cardStyle}" onclick="filterAndGo('accesorio')" title="Ver accesorios">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📦</span><div><div class="kpi-num" style="font-size:22px">${otros}</div><div class="kpi-label">Otros</div></div></div>
+      </div>
     `;
   }
 
@@ -1887,7 +1911,8 @@ function getFiltered() {
   const fei = document.getElementById('filterEmpresaInv')?.value||'';
   return equipos.filter(e => {
     const match = !q || [e.tag,e.serie,e.marca,e.modelo,e.usuario,e.tipo,e.estado,e.empresa].some(v=>(v||'').toLowerCase().includes(q));
-    return match && (!fa||e.asignacion===fa) && (!fe||e.estado===fe) && (!ft||e.tipo===ft) && (!fm||e.marca===fm) && (!fu||e.usuario===fu) && (!fei||(e.empresa||'').toLowerCase().includes(fei.toLowerCase()));
+    const tipoMatch = _filterTipos ? _filterTipos.includes(e.tipo) : (!ft||e.tipo===ft);
+    return match && (!fa||e.asignacion===fa) && (!fe||e.estado===fe) && tipoMatch && (!fm||e.marca===fm) && (!fu||e.usuario===fu) && (!fei||(e.empresa||'').toLowerCase().includes(fei.toLowerCase()));
   });
 }
 
@@ -3650,6 +3675,33 @@ function toggleSidebar() {
 
 
 
+
+
+function filterAndGo(tipo) {
+  showPanel('inventario');
+  // Deactivate sub-nav items
+  ['nav-computadoras','nav-monitores','nav-accesorios'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  // Activate the right one
+  const accesorios = ['Headset','Kit Teclado Mouse','Adaptador Monitor (HDMI)','Camara Web'];
+  if (tipo === 'accesorio') {
+    // Filter shows all accessories
+    document.getElementById('filterTipo').value = '';
+    document.getElementById('nav-accesorios')?.classList.add('active');
+    // Use search to filter accessories
+    document.getElementById('searchInput').value = '';
+    _filterTipos = accesorios;
+  } else {
+    document.getElementById('filterTipo').value = tipo;
+    _filterTipos = null;
+    document.getElementById('nav-' + (tipo==='Computadora'?'computadoras':'monitores'))?.classList.add('active');
+  }
+  document.getElementById('nav-inventario').classList.remove('active');
+  renderTable();
+}
+let _filterTipos = null;
 
 function toggleSelectAll(cb) {
   document.querySelectorAll('.eq-checkbox').forEach(c => c.checked = cb.checked);
