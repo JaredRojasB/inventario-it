@@ -328,60 +328,26 @@ footer {
     </div>
   </header>
 
-  <!-- KPIs -->
-  <div class="kpi-grid" id="kpiGrid"></div>
-  <div class="kpi-grid" id="kpiGridTypes" style="margin-top:-10px;margin-bottom:16px"></div>
+  <!-- ROW 1: KPIs por tipo -->
+  <div class="kpi-grid" id="kpiGridTypes" style="margin-bottom:14px"></div>
 
-  <!-- Charts row -->
-  <div class="dash-grid">
+  <!-- ROW 2: Estado general + Distribución por tipo en bodega/asignados -->
+  <div class="dash-grid" style="margin-bottom:14px">
     <div class="card">
-      <div class="card-header"><span>Equipos por Tipo</span><span id="totalTipos"></span></div>
-      <div class="card-body" id="chartTipo"></div>
-    </div>
-    <div class="card">
-      <div class="card-header"><span>Estado del Inventario</span></div>
+      <div class="card-header"><span>Estado del Inventario</span><span id="totalEquipos" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span></div>
       <div class="card-body"><div class="donut-wrap" id="chartEstado"></div></div>
     </div>
-  </div>
-
-  <div class="dash-grid">
     <div class="card">
-      <div class="card-header"><span>Equipos por Marca (Top 6)</span></div>
-      <div class="card-body" id="chartMarca"></div>
-    </div>
-    <div class="card">
-      <div class="card-header"><span>Distribución</span></div>
-      <div class="card-body">
-        <div id="distChart"></div>
-      </div>
+      <div class="card-header"><span>Distribución por Tipo</span></div>
+      <div class="card-body" id="distTipoChart"></div>
     </div>
   </div>
 
-  <!-- Tables -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="card-header">
-      <span>Equipos Asignados a Usuarios</span>
-      <span id="assignCount" style="color:var(--accent)"></span>
-    </div>
-    <div style="overflow-x:auto">
-      <table>
-        <thead><tr><th>TAG</th><th>Tipo</th><th>Marca</th><th>Modelo</th><th>Estado</th><th>Usuario</th><th>Empresa</th></tr></thead>
-        <tbody id="tUsers"></tbody>
-      </table>
-      <div id="tUsersEmpty" style="display:none;padding:20px;text-align:center;color:var(--muted);font-size:13px">Sin equipos asignados</div>
-    </div>
-  </div>
-
-  <div class="dash-grid">
+  <!-- ROW 3: Bodega desglosada + En reparación -->
+  <div class="dash-grid" style="margin-bottom:14px">
     <div class="card">
-      <div class="card-header"><span>En Bodega</span><span id="bodegaCount" style="color:var(--accent2)"></span></div>
-      <div style="overflow-x:auto">
-        <table>
-          <thead><tr><th>TAG</th><th>Tipo</th><th>Marca / Modelo</th><th>Estado</th></tr></thead>
-          <tbody id="tBodega"></tbody>
-        </table>
-        <div id="tBodegaEmpty" style="display:none;padding:16px;text-align:center;color:var(--muted);font-size:12px">Sin equipos en bodega</div>
-      </div>
+      <div class="card-header"><span>🏢 En Bodega por Tipo</span><span id="bodegaCount" style="color:var(--accent2)"></span></div>
+      <div class="card-body" id="bodegaTipoChart"></div>
     </div>
     <div class="card">
       <div class="card-header"><span>🔧 En Reparación</span><span id="repCount" style="color:var(--warning)"></span></div>
@@ -390,8 +356,20 @@ footer {
           <thead><tr><th>TAG</th><th>Tipo</th><th>Marca / Modelo</th><th>Asignado a</th></tr></thead>
           <tbody id="tRep"></tbody>
         </table>
-        <div id="tRepEmpty" style="display:none;padding:16px;text-align:center;color:var(--muted);font-size:12px">Sin equipos en reparación</div>
+        <div id="tRepEmpty" style="display:none;padding:16px;text-align:center;color:var(--muted);font-size:12px">Sin equipos en reparación ✅</div>
       </div>
+    </div>
+  </div>
+
+  <!-- ROW 4: Marcas top -->
+  <div class="dash-grid" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-header"><span>Equipos por Marca (Top 6)</span></div>
+      <div class="card-body" id="chartMarca"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span>Asignados — desglose por tipo</span><span id="assignCount" style="color:var(--accent)"></span></div>
+      <div class="card-body" id="assignTipoChart"></div>
     </div>
   </div>
 
@@ -549,48 +527,32 @@ function render(equipos) {
   const bodega  = equipos.filter(e=>e.asignacion==='bodega');
   const rep     = equipos.filter(e=>e.estado==='En reparación');
   const baja    = equipos.filter(e=>e.estado==='Dado de baja');
-  const marcas  = new Set(equipos.map(e=>e.marca).filter(Boolean));
 
-  // KPIs
-  // Type breakdown
-  const compus = equipos.filter(e=>e.tipo==='Computadora').length;
-  const mons = equipos.filter(e=>e.tipo==='Monitor').length;
-  const heads = equipos.filter(e=>e.tipo==='Headset').length;
-  const kits = equipos.filter(e=>e.tipo==='Kit Teclado Mouse').length;
-  const otros = equipos.filter(e=>!['Computadora','Monitor','Headset','Kit Teclado Mouse'].includes(e.tipo)).length;
-  const tGrid = document.getElementById('kpiGridTypes');
-  if (tGrid) tGrid.innerHTML = `
-    <div class="kpi-card" style="border-top:3px solid var(--accent);padding:12px 16px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">💻</span><div><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent)">${compus}</div><div style="font-size:11px;color:var(--muted)">Computadoras</div></div></div></div>
-    <div class="kpi-card" style="border-top:3px solid var(--accent2);padding:12px 16px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">🖥️</span><div><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent2)">${mons}</div><div style="font-size:11px;color:var(--muted)">Monitores</div></div></div></div>
-    <div class="kpi-card" style="border-top:3px solid var(--warning);padding:12px 16px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">🎧</span><div><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--warning)">${heads}</div><div style="font-size:11px;color:var(--muted)">Headsets</div></div></div></div>
-    <div class="kpi-card" style="border-top:3px solid var(--purple);padding:12px 16px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">⌨️</span><div><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--purple)">${kits}</div><div style="font-size:11px;color:var(--muted)">Kits Teclado</div></div></div></div>
-    <div class="kpi-card" style="border-top:3px solid var(--danger);padding:12px 16px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">📦</span><div><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--danger)">${otros}</div><div style="font-size:11px;color:var(--muted)">Otros</div></div></div></div>
-  `;
+  // Type counts
+  const tipos_def = [
+    {key:'Computadora', icon:'💻', color:'var(--accent)'},
+    {key:'Monitor',     icon:'🖥️', color:'var(--accent2)'},
+    {key:'Headset',     icon:'🎧', color:'var(--warning)'},
+    {key:'Kit Teclado Mouse', icon:'⌨️', color:'var(--purple)'},
+    {key:'Adaptador Monitor (HDMI)', icon:'🔌', color:'#0891b2'},
+    {key:'Camara Web',  icon:'📷', color:'#be185d'},
+  ];
+  const countByTipo = t => equipos.filter(e=>e.tipo===t).length;
 
-  document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi blue"><div class="kpi-icon">🖥️</div><div class="kpi-num">${equipos.length}</div><div class="kpi-lbl">Total Equipos</div></div>
-    <div class="kpi green"><div class="kpi-icon">👤</div><div class="kpi-num">${users.length}</div><div class="kpi-lbl">Asignados</div></div>
-    <div class="kpi yellow"><div class="kpi-icon">🏢</div><div class="kpi-num">${bodega.length}</div><div class="kpi-lbl">En Bodega</div></div>
-    <div class="kpi red"><div class="kpi-icon">🔧</div><div class="kpi-num">${rep.length}</div><div class="kpi-lbl">En Reparación</div></div>
-    <div class="kpi purple"><div class="kpi-icon">👥</div><div class="kpi-num">${new Set(users.map(e=>e.usuario).filter(Boolean)).size}</div><div class="kpi-lbl">Usuarios</div></div>
-  `;
+  // ROW 1: KPI cards per type
+  document.getElementById('kpiGridTypes').innerHTML = tipos_def.map(t=>`
+    <div class="kpi-card" style="border-top:3px solid ${t.color};padding:12px 16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">${t.icon}</span>
+        <div>
+          <div style="font-family:var(--mono);font-size:24px;font-weight:700;color:${t.color};line-height:1">${countByTipo(t.key)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">${t.key}</div>
+        </div>
+      </div>
+    </div>`).join('');
 
-  const colors = ['#4f8eff','#00d492','#ffb84f','#ff5a6e','#a78bfa','#22d3ee'];
-
-  // Chart Tipo
-  const tipoC = {};
-  equipos.forEach(e=>{ if(e.tipo) tipoC[e.tipo]=(tipoC[e.tipo]||0)+1; });
-  const tipos = Object.entries(tipoC).sort((a,b)=>b[1]-a[1]);
-  const maxT = tipos[0]?.[1]||1;
-  document.getElementById('totalTipos').textContent = `${tipos.length} tipos`;
-  document.getElementById('chartTipo').innerHTML = tipos.map(([t,c],i)=>`
-    <div class="bar-row">
-      <div class="bar-label">${t}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(6,(c/maxT)*100)}%;background:${colors[i%6]}"><span>${c}</span></div></div>
-      <div class="bar-val">${c}</div>
-    </div>`).join('') || '<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">Sin datos</div>';
-
-  // Chart Estado (donut)
+  // Estado donut
+  document.getElementById('totalEquipos').textContent = equipos.length + ' equipos totales';
   const estadoD = [
     {label:'Activo', count:equipos.filter(e=>e.estado==='Activo').length, color:'#00d492'},
     {label:'En reparación', count:rep.length, color:'#ffb84f'},
@@ -611,13 +573,45 @@ function render(equipos) {
       <circle cx="70" cy="70" r="55" fill="#f1f4fb"/>
       ${svgPaths}
       <circle cx="70" cy="70" r="30" fill="#ffffff"/>
-      <text x="70" y="74" text-anchor="middle" font-family="IBM Plex Mono" font-size="16" font-weight="700" fill="#e8eaf6">${totalE}</text>
+      <text x="70" y="75" text-anchor="middle" font-family="IBM Plex Mono" font-size="15" font-weight="700" fill="#1e2340">${totalE}</text>
     </svg>
     <div class="legend">
       ${estadoD.map(d=>`<div class="leg-item"><div class="leg-dot" style="background:${d.color}"></div><span>${d.label}</span><span style="font-family:var(--mono);font-size:11px;margin-left:auto;padding-left:14px;font-weight:700">${d.count}</span></div>`).join('')}
     </div>`;
 
+  // Distribución por tipo (total)
+  const maxTipo = Math.max(...tipos_def.map(t=>countByTipo(t.key)),1);
+  document.getElementById('distTipoChart').innerHTML = tipos_def.map(t=>`
+    <div class="bar-row">
+      <div class="bar-label">${t.icon} ${t.key}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4,(countByTipo(t.key)/maxTipo)*100)}%;background:${t.color}"><span>${countByTipo(t.key)}</span></div></div>
+      <div class="bar-val">${countByTipo(t.key)}</div>
+    </div>`).join('');
+
+  // Bodega desglose por tipo
+  const bodegaByTipo = t => bodega.filter(e=>e.tipo===t).length;
+  const maxBod = Math.max(...tipos_def.map(t=>bodegaByTipo(t.key)),1);
+  document.getElementById('bodegaCount').textContent = bodega.length + ' equipos';
+  document.getElementById('bodegaTipoChart').innerHTML = tipos_def.map(t=>`
+    <div class="bar-row">
+      <div class="bar-label">${t.icon} ${t.key}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4,(bodegaByTipo(t.key)/maxBod)*100)}%;background:${t.color}"><span>${bodegaByTipo(t.key)}</span></div></div>
+      <div class="bar-val">${bodegaByTipo(t.key)}</div>
+    </div>`).join('');
+
+  // Asignados desglose por tipo
+  const assignByTipo = t => users.filter(e=>e.tipo===t).length;
+  const maxAss = Math.max(...tipos_def.map(t=>assignByTipo(t.key)),1);
+  document.getElementById('assignCount').textContent = users.length + ' equipos';
+  document.getElementById('assignTipoChart').innerHTML = tipos_def.map(t=>`
+    <div class="bar-row">
+      <div class="bar-label">${t.icon} ${t.key}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4,(assignByTipo(t.key)/maxAss)*100)}%;background:${t.color}"><span>${assignByTipo(t.key)}</span></div></div>
+      <div class="bar-val">${assignByTipo(t.key)}</div>
+    </div>`).join('');
+
   // Chart Marca
+  const colors = ['#4f8eff','#00d492','#ffb84f','#ff5a6e','#a78bfa','#22d3ee'];
   const marcaC = {};
   equipos.forEach(e=>{ if(e.marca) marcaC[e.marca]=(marcaC[e.marca]||0)+1; });
   const marcaArr = Object.entries(marcaC).sort((a,b)=>b[1]-a[1]).slice(0,6);
@@ -629,63 +623,12 @@ function render(equipos) {
       <div class="bar-val">${c}</div>
     </div>`).join('') || '<div style="color:var(--muted);font-size:12px;padding:20px;text-align:center">Sin datos</div>';
 
-  // Distribution summary
-  const pctUser = equipos.length ? Math.round((users.length/equipos.length)*100) : 0;
-  const pctBod  = equipos.length ? Math.round((bodega.length/equipos.length)*100) : 0;
-  document.getElementById('distChart').innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div>
-        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span>👤 Asignados</span><span style="font-family:var(--mono);color:var(--accent)">${pctUser}%</span></div>
-        <div class="bar-track" style="height:22px"><div class="bar-fill" style="width:${pctUser}%;background:var(--accent)"><span>${users.length}</span></div></div>
-      </div>
-      <div>
-        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span>🏢 Bodega</span><span style="font-family:var(--mono);color:var(--accent2)">${pctBod}%</span></div>
-        <div class="bar-track" style="height:22px"><div class="bar-fill" style="width:${pctBod}%;background:var(--accent2)"><span>${bodega.length}</span></div></div>
-      </div>
-      <div style="border-top:1px solid var(--border);padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div style="text-align:center;background:var(--surface2);border-radius:8px;padding:10px">
-          <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--warning)">${rep.length}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">En Reparación</div>
-        </div>
-        <div style="text-align:center;background:var(--surface2);border-radius:8px;padding:10px">
-          <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--muted)">${baja.length}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Dados de Baja</div>
-        </div>
-      </div>
-    </div>`;
-
-  // Tables
-  const statBadge = e => {
-    if (e.estado==='En reparación') return '<span class="badge b-rep">🔧 Reparación</span>';
-    if (e.estado==='Dado de baja')  return '<span class="badge b-baja">❌ Baja</span>';
-    return '<span class="badge b-activo">✅ Activo</span>';
-  };
-
-  document.getElementById('assignCount').textContent = users.length + ' equipos';
-  document.getElementById('tUsers').innerHTML = users.map(e=>`<tr>
-    <td class="mono">${e.tag}</td>
-    <td style="color:var(--muted);font-size:11px">${e.tipo||'—'}</td>
-    <td>${e.marca}</td><td>${e.modelo}</td>
-    <td>${statBadge(e)}</td>
-    <td style="font-weight:500">${e.usuario||'—'}</td>
-    <td style="font-size:11px;color:var(--muted)">${e.empresa||'—'}</td>
-  </tr>`).join('');
-  document.getElementById('tUsersEmpty').style.display = users.length===0?'block':'none';
-
-  document.getElementById('bodegaCount').textContent = bodega.length + ' equipos';
-  document.getElementById('tBodega').innerHTML = bodega.map(e=>`<tr>
-    <td class="mono">${e.tag}</td>
-    <td style="color:var(--muted);font-size:11px">${e.tipo||'—'}</td>
-    <td>${e.marca} ${e.modelo}</td>
-    <td>${statBadge(e)}</td>
-  </tr>`).join('');
-  document.getElementById('tBodegaEmpty').style.display = bodega.length===0?'block':'none';
-
+  // En reparacion table
   document.getElementById('repCount').textContent = rep.length + ' equipos';
   document.getElementById('tRep').innerHTML = rep.map(e=>`<tr>
     <td class="mono">${e.tag}</td>
     <td style="color:var(--muted);font-size:11px">${e.tipo||'—'}</td>
-    <td>${e.marca} ${e.modelo}</td>
+    <td>${e.marca||'—'} ${e.modelo||'—'}</td>
     <td style="font-weight:500;color:var(--warning)">${e.asignacion==='usuario'?e.usuario:'Bodega'}</td>
   </tr>`).join('');
   document.getElementById('tRepEmpty').style.display = rep.length===0?'block':'none';
