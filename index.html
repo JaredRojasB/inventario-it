@@ -70,7 +70,8 @@ body {
 .sidebar.collapsed .nav-item { justify-content: center; padding: 10px 0; gap: 0; }
 .sidebar.collapsed .nav-item > *:not(.nav-icon) { display: none !important; }
 .sidebar.collapsed .nav-icon { font-size: 18px; width: 52px; text-align:center; margin:0; }
-.sidebar.collapsed .sidebar-logo { justify-content: center; padding: 12px 0; }
+.sidebar.collapsed .sidebar-logo { padding: 14px 0; display:flex; align-items:center; justify-content:center; }
+.sidebar.collapsed .sidebar-logo #sidebarToggle { position:static; transform:none; }
 .sidebar.collapsed .sidebar-nav { padding: 8px 0; }
 .main.expanded { margin-left: 52px; }
 
@@ -903,13 +904,11 @@ textarea { resize: vertical; min-height: 60px; }
 <div class="layout">
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-logo" style="display:flex;align-items:center;justify-content:space-between">
-    <div>
-      <div class="app-name">💻 InventarioTech</div>
-      <div class="app-sub">IT Asset Manager</div>
-      <span class="version-badge">v2.0 PRO</span>
-    </div>
-    <button id="sidebarToggle" onclick="toggleSidebar()" style="background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:18px;padding:4px;line-height:1" title="Colapsar menú">◀</button>
+  <div class="sidebar-logo" style="position:relative;padding-right:36px">
+    <div class="app-name">💻 InventarioTech</div>
+    <div class="app-sub">IT Asset Manager</div>
+    <span class="version-badge">v2.0 PRO</span>
+    <button id="sidebarToggle" onclick="toggleSidebar()" style="position:absolute;top:50%;right:8px;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:16px;padding:4px;line-height:1;z-index:10" title="Colapsar menú">◀</button>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-section">Principal</div>
