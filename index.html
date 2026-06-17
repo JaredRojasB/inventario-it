@@ -56,8 +56,22 @@ body {
   position: fixed;
   top:0; left:0; bottom:0;
   z-index: 50;
-  transition: transform 0.3s;
+  transition: width 0.25s ease, transform 0.3s;
+  overflow: hidden;
 }
+
+.sidebar.collapsed { width: 56px; }
+.sidebar.collapsed .app-sub,
+.sidebar.collapsed .version-badge,
+.sidebar.collapsed .nav-section,
+.sidebar.collapsed .nav-item span:not(.nav-icon),
+.sidebar.collapsed .nav-badge,
+.sidebar.collapsed #sidebar-count { display: none !important; }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 10px; }
+.sidebar.collapsed .nav-icon { font-size: 18px; width: auto; }
+.sidebar.collapsed .app-name { display: none; }
+.sidebar.collapsed #sidebarToggle { content: "▶"; }
+.main.expanded { margin-left: 56px; }
 
 .sidebar-logo {
   padding: 20px 18px 16px;
@@ -888,10 +902,13 @@ textarea { resize: vertical; min-height: 60px; }
 <div class="layout">
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-logo">
-    <div class="app-name">💻 InventarioTech</div>
-    <div class="app-sub">IT Asset Manager</div>
-    <span class="version-badge">v2.0 PRO</span>
+  <div class="sidebar-logo" style="display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div class="app-name">💻 InventarioTech</div>
+      <div class="app-sub">IT Asset Manager</div>
+      <span class="version-badge">v2.0 PRO</span>
+    </div>
+    <button id="sidebarToggle" onclick="toggleSidebar()" style="background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:18px;padding:4px;line-height:1" title="Colapsar menú">◀</button>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-section">Principal</div>
@@ -919,7 +936,6 @@ textarea { resize: vertical; min-height: 60px; }
     <div class="nav-section">Datos</div>
     <button class="nav-item" onclick="showPanel('importar')" id="nav-importar">
       <span class="nav-icon">📥</span> Importar
-      <span class="nav-badge" id="alertBadge">!</span>
     </button>
   </nav>
   <div class="sidebar-footer" id="sidebar-footer" style="display:flex;flex-direction:column;gap:4px">
@@ -999,6 +1015,7 @@ textarea { resize: vertical; min-height: 60px; }
         <select id="filterUsuario" onchange="renderTable()">
           <option value="">Empleado: Todos</option>
         </select>
+        <button class="btn btn-danger-soft" onclick="deleteAllEquipos()" style="white-space:nowrap">🗑️ Borrar todo</button>
       </div>
 
       <div class="table-card">
@@ -2799,7 +2816,7 @@ async function confirmImport() {
 
   await saveData();
   cancelImport();
-  renderTable();
+  showPanel('dashboard');
   showToast(`✅ ${added} nuevos · ${updated} actualizados · ${skipped} ignorados`, 'success');
 }
 
@@ -2892,7 +2909,7 @@ async function clearAndReimport() {
   equipos = allData;
   await saveData();
   cancelImport();
-  renderTable();
+  showPanel('dashboard');
   showToast(`✅ ${allData.length} equipos importados desde cero`, 'success');
 }
 
@@ -3482,6 +3499,40 @@ document.getElementById('pendienteModal').addEventListener('click', e => {
   if (e.target === document.getElementById('pendienteModal')) closePendienteModal();
 });
 
+
+
+// ═══════════════════════════════════════════
+//  SIDEBAR TOGGLE
+// ═══════════════════════════════════════════
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const main = document.querySelector('.main');
+  const btn = document.getElementById('sidebarToggle');
+  const collapsed = sidebar.classList.toggle('collapsed');
+  main.classList.toggle('expanded', collapsed);
+  btn.textContent = collapsed ? '▶' : '◀';
+  localStorage.setItem('sidebarCollapsed', collapsed);
+}
+
+// Restore sidebar state
+(function() {
+  if (localStorage.getItem('sidebarCollapsed') === 'true') {
+    document.getElementById('sidebar').classList.add('collapsed');
+    document.querySelector('.main').classList.add('expanded');
+    const btn = document.getElementById('sidebarToggle');
+    if (btn) btn.textContent = '▶';
+  }
+})();
+
+
+async function deleteAllEquipos() {
+  if (!confirm(`⚠️ ¿Eliminar los ${equipos.length} equipos del inventario? Esta acción no se puede deshacer.`)) return;
+  equipos = [];
+  await saveData();
+  renderTable();
+  renderDashboard();
+  showToast('Inventario limpiado', 'success');
+}
 
 function openGoogleSheet() {
   window.open('https://drive.google.com/drive/search?q=InventarioTech', '_blank');
