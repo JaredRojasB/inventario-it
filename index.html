@@ -1814,7 +1814,7 @@ function renderDashboard() {
   // Alert
   const banner = document.getElementById('alertBanner');
   if (incomplete > 0) {
-    document.getElementById('alertMsg').textContent = `${incomplete} equipo(s) con datos incompletos (TAG, serie, marca o modelo faltantes)`;
+    document.getElementById('alertMsg').textContent = `${incomplete} equipo(s) con datos incompletos en todo el inventario`;
     banner.classList.add('show');
   } else {
     banner.classList.remove('show');
@@ -1964,7 +1964,17 @@ function renderTable() {
   updateSidebarFooter();
 
   // Alert — clickable, shows which ones
-  const incompleteList = equipos.filter(e => !e.tag||!e.serie||!e.marca||!e.modelo);
+  // Show incomplete alerts only for current category
+  const accesorioTypes = ['Headset','Kit Teclado Mouse','Adaptador Monitor (HDMI)','Camara Web'];
+  const activeNavId = [...document.querySelectorAll('.nav-item.active')].map(e=>e.id).find(id=>['nav-computadoras','nav-monitores','nav-accesorios','nav-inventario'].includes(id));
+  const categoryFilter = {
+    'nav-computadoras': e => e.tipo === 'Computadora',
+    'nav-monitores': e => e.tipo === 'Monitor',
+    'nav-accesorios': e => accesorioTypes.includes(e.tipo),
+    'nav-inventario': e => true
+  };
+  const catFn = categoryFilter[activeNavId] || (e => true);
+  const incompleteList = equipos.filter(e => catFn(e) && (!e.tag||!e.serie||!e.marca||!e.modelo));
   const banner = document.getElementById('alertBannerInv');
   if (incompleteList.length > 0) {
     const tags = incompleteList.map(e => e.tag || e.serie || e.marca || '(sin TAG)').slice(0,5).join(', ');
@@ -2566,16 +2576,17 @@ const GLPI_ESTADO_MAP = {
 };
 
 function normalizeTipo(raw) {
+  // If importing a specific category, force that type for ALL records
+  if (importType === 'monitores') return 'Monitor';
+  if (importType === 'equipos') return 'Computadora';
+  if (importType === 'accesorios') {
+    // For accessories, use GLPI Type to distinguish subtypes
+    const key = (raw||'').toLowerCase().trim();
+    return GLPI_TIPO_MAP[key] || raw || 'Headset';
+  }
+  // Generic fallback
   const key = (raw||'').toLowerCase().trim();
-  if (GLPI_TIPO_MAP[key]) return GLPI_TIPO_MAP[key];
-  if (raw && raw.trim()) return raw.trim();
-  // Fallback based on current import type
-  const fallbacks = {
-    monitores: 'Monitor',
-    accesorios: 'Headset',
-    equipos: 'Computadora'
-  };
-  return fallbacks[importType] || 'Computadora';
+  return GLPI_TIPO_MAP[key] || raw || 'Computadora';
 }
 
 function normalizeEstado(raw) {
@@ -2741,7 +2752,7 @@ function parseGLPIEquipos(headers, body) {
       notas:   g('notas'),
       fecha
     };
-  }).filter(e => e.tag || e.serie);
+  }); // Keep all records regardless of missing fields
 }
 
 function parsePropioCsv(headers, body) {
@@ -2926,13 +2937,12 @@ async function confirmImport() {
 
   // New items — deduplicate against current equipos by TAG or serie
   importData.forEach(e => {
-    if (!e.tag && !e.serie) { skipped++; return; }
+    // Leave TAG blank if missing — user can fill it later
     // Double-check not already in equipos (guard against re-import)
     const alreadyExists = equipos.some(x =>
       (e.tag && x.tag === e.tag) || (e.serie && e.serie.length > 4 && x.serie === e.serie)
     );
     if (alreadyExists) { skipped++; return; }
-    if (!e.tag) e.tag = 'IMP-' + Date.now() + Math.random().toString(36).slice(2,5);
     equipos.push(e);
     addHistory(e.tag, 'Importado desde GLPI', `${e.tipo} ${e.marca} ${e.modelo}`);
     if (e.asignacion==='usuario' && e.usuario)
@@ -3038,7 +3048,7 @@ async function clearAndReimport() {
   const allIncoming = [
     ...importData,
     ...importConflicts.map(c => c.incoming)
-  ].filter(e => e.tag || e.serie);
+  ];
 
   // Use importType to determine what gets replaced — not the data itself
   const typeLabels = { equipos: 'Computadoras', monitores: 'Monitores', accesorios: 'Accesorios' };
