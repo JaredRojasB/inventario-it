@@ -962,6 +962,7 @@ textarea { resize: vertical; min-height: 60px; }
     <!-- ═══ DASHBOARD ═══ -->
     <div class="panel active" id="panel-dashboard">
       <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="kpi-grid" id="kpiGridTypes" style="margin-top:-10px;margin-bottom:16px"></div>
       <div id="alertBanner" class="alert-banner">
         <span>⚠️</span>
         <span id="alertMsg"></span>
@@ -1016,6 +1017,38 @@ textarea { resize: vertical; min-height: 60px; }
         </select>
         <select id="filterUsuario" onchange="renderTable()">
           <option value="">Empleado: Todos</option>
+        </select>
+        <select id="filterEmpresaInv" onchange="renderTable()">
+          <option value="">Empresa: Todas</option>
+          <option>Accushield</option>
+          <option>Anthem</option>
+          <option>Asbury Communities</option>
+          <option>Atlas</option>
+          <option>Avanti</option>
+          <option>Bickford SL</option>
+          <option>CCL</option>
+          <option>Choice Digital</option>
+          <option>Compass Group</option>
+          <option>Full Life Care</option>
+          <option>GKV</option>
+          <option>GKV US</option>
+          <option>HumanGood</option>
+          <option>KARE</option>
+          <option>Lenity Management</option>
+          <option>Lifespace</option>
+          <option>LTC Properties Inc</option>
+          <option>Markentum</option>
+          <option>Milestone</option>
+          <option>NIC</option>
+          <option>Oxford Road</option>
+          <option>Rendever</option>
+          <option>Sodalis Senior Living</option>
+          <option>Sona Senior Living</option>
+          <option>Sunrise</option>
+          <option>Transforming Age</option>
+          <option>Trustwell Living</option>
+          <option>Watermark</option>
+          <option>Wyld</option>
         </select>
         <button class="btn btn-ghost btn-sm" id="btnBorrarSeleccion" onclick="deleteSelected()" style="white-space:nowrap;color:var(--danger);border-color:var(--danger);display:none">🗑️ Borrar selección</button><button class="btn btn-danger-soft" onclick="deleteAllEquipos()" style="white-space:nowrap">🗑️ Borrar todo</button>
       </div>
@@ -1710,13 +1743,32 @@ function renderDashboard() {
   const baja = equipos.filter(e => e.estado === 'Dado de baja').length;
   const incomplete = equipos.filter(e => !e.tag || !e.serie || !e.marca || !e.modelo).length;
 
+  // By type
+  const compus = equipos.filter(e => e.tipo === 'Computadora').length;
+  const monitores = equipos.filter(e => e.tipo === 'Monitor').length;
+  const headsets = equipos.filter(e => e.tipo === 'Headset').length;
+  const teclados = equipos.filter(e => e.tipo === 'Kit Teclado Mouse').length;
+  const otros = equipos.filter(e => !['Computadora','Monitor','Headset','Kit Teclado Mouse'].includes(e.tipo)).length;
+
   document.getElementById('kpiGrid').innerHTML = `
     <div class="kpi-card blue"><div class="kpi-icon">🖥️</div><div class="kpi-num">${total}</div><div class="kpi-label">Total Equipos</div></div>
-    <div class="kpi-card green"><div class="kpi-icon">👤</div><div class="kpi-num">${asignados}</div><div class="kpi-label">Asignados a Usuario</div></div>
+    <div class="kpi-card green"><div class="kpi-icon">👤</div><div class="kpi-num">${asignados}</div><div class="kpi-label">Asignados</div></div>
     <div class="kpi-card yellow"><div class="kpi-icon">🏢</div><div class="kpi-num">${bodega}</div><div class="kpi-label">En Bodega</div></div>
     <div class="kpi-card red"><div class="kpi-icon">🔧</div><div class="kpi-num">${reparacion}</div><div class="kpi-label">En Reparación</div></div>
     <div class="kpi-card purple"><div class="kpi-icon">❌</div><div class="kpi-num">${baja}</div><div class="kpi-label">Dados de Baja</div></div>
   `;
+
+  // Type breakdown row
+  const typeGrid = document.getElementById('kpiGridTypes');
+  if (typeGrid) {
+    typeGrid.innerHTML = `
+      <div class="kpi-card blue" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">💻</span><div><div class="kpi-num" style="font-size:22px">${compus}</div><div class="kpi-label">Computadoras</div></div></div></div>
+      <div class="kpi-card green" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🖥️</span><div><div class="kpi-num" style="font-size:22px">${monitores}</div><div class="kpi-label">Monitores</div></div></div></div>
+      <div class="kpi-card yellow" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🎧</span><div><div class="kpi-num" style="font-size:22px">${headsets}</div><div class="kpi-label">Headsets</div></div></div></div>
+      <div class="kpi-card purple" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⌨️</span><div><div class="kpi-num" style="font-size:22px">${teclados}</div><div class="kpi-label">Kits Teclado</div></div></div></div>
+      <div class="kpi-card red" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📦</span><div><div class="kpi-num" style="font-size:22px">${otros}</div><div class="kpi-label">Otros</div></div></div></div>
+    `;
+  }
 
   // Alert
   const banner = document.getElementById('alertBanner');
@@ -1815,9 +1867,10 @@ function getFiltered() {
   const ft = document.getElementById('filterTipo')?.value||'';
   const fm = document.getElementById('filterMarca')?.value||'';
   const fu = document.getElementById('filterUsuario')?.value||'';
+  const fei = document.getElementById('filterEmpresaInv')?.value||'';
   return equipos.filter(e => {
-    const match = !q || [e.tag,e.serie,e.marca,e.modelo,e.usuario,e.tipo,e.estado].some(v=>(v||'').toLowerCase().includes(q));
-    return match && (!fa||e.asignacion===fa) && (!fe||e.estado===fe) && (!ft||e.tipo===ft) && (!fm||e.marca===fm) && (!fu||e.usuario===fu);
+    const match = !q || [e.tag,e.serie,e.marca,e.modelo,e.usuario,e.tipo,e.estado,e.empresa].some(v=>(v||'').toLowerCase().includes(q));
+    return match && (!fa||e.asignacion===fa) && (!fe||e.estado===fe) && (!ft||e.tipo===ft) && (!fm||e.marca===fm) && (!fu||e.usuario===fu) && (!fei||(e.empresa||'').toLowerCase().includes(fei.toLowerCase()));
   });
 }
 
@@ -2824,7 +2877,7 @@ async function confirmImport() {
   await saveData();
   cancelImport();
   showPanel('dashboard');
-  showToast(`✅ ${added} nuevos · ${updated} actualizados · ${skipped} ignorados`, 'success');
+  showToast(`✅ Equipos importados: ${added} nuevos · ${updated} actualizados · ${skipped} ignorados`, 'success');
 }
 
 async function confirmUsersImport() {
@@ -2851,7 +2904,7 @@ async function confirmUsersImport() {
   if (updated > 0) await saveData();
   cancelImport();
   renderUsers();
-  showToast(`👥 ${added} nuevos · ${updated_u} actualizados · ${updated} equipos con empresa`, 'success');
+  showToast(`👥 Usuarios importados: ${added} nuevos · ${updated_u} actualizados`, 'success');
 }
 
 async function saveUsersToSheet(users) {
@@ -2917,7 +2970,7 @@ async function clearAndReimport() {
   await saveData();
   cancelImport();
   showPanel('dashboard');
-  showToast(`✅ ${allData.length} equipos importados desde cero`, 'success');
+  showToast(`✅ Equipos: ${allData.length} importados desde cero`, 'success');
 }
 
 
