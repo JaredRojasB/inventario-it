@@ -2049,14 +2049,14 @@ function renderTable() {
   // Alert — clickable, shows which ones
   // Show incomplete alerts only for current category
   const accesorioTypes = ['Headset','Kit Teclado Mouse','Adaptador Monitor (HDMI)','Camara Web'];
-  const activeNavId = [...document.querySelectorAll('.nav-item.active')].map(e=>e.id).find(id=>['nav-computadoras','nav-monitores','nav-accesorios','nav-inventario'].includes(id));
+  const activeNavIdAlert = [...document.querySelectorAll('.nav-item.active')].map(e=>e.id).find(id=>['nav-computadoras','nav-monitores','nav-accesorios','nav-inventario'].includes(id));
   const categoryFilter = {
     'nav-computadoras': e => e.tipo === 'Computadora',
     'nav-monitores': e => e.tipo === 'Monitor',
     'nav-accesorios': e => accesorioTypes.includes(e.tipo),
     'nav-inventario': e => true
   };
-  const catFn = categoryFilter[activeNavId] || (e => true);
+  const catFn = categoryFilter[activeNavIdAlert] || (e => true);
   const incompleteList = equipos.filter(e => catFn(e) && (!e.tag||!e.serie||!e.marca||!e.modelo));
   const desconocidosList = equipos.filter(e => catFn(e) && e.asignacion === 'desconocido');
   const banner = document.getElementById('alertBannerInv');
